@@ -1,0 +1,478 @@
+﻿<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LOST - Survivors</title>
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="resources/styles/style.css">
+  <style>
+    .action-btn.active { outline: 2px solid #f1c40f; box-shadow: 0 0 12px rgba(241,196,15,0.45); }
+    .status-item.clickable { cursor: pointer; }
+    .metrics-grid { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+    .metric-card { min-width:92px; padding:6px 8px; background:#2d2d2d; border:1px solid #3a3a3a; border-radius:6px; display:flex; align-items:center; gap:6px; }
+    .metric-card[title] { cursor:help; }
+    .metric-icon { font-size:14px; }
+    .metric-text { font-size:10px; line-height:1.1; color:#bbb; flex:1; }
+    .metric-count { font-size:12px; font-weight:700; color:#f1c40f; }
+    .survivor-action-row { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+    .survivor-action-btn { width:40px; height:40px; border-radius:8px; border:1px solid #444; background:#232323; color:#ddd; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; font-size:18px; position:relative; }
+    .survivor-action-btn:hover { border-color:#888; background:#2b2b2b; }
+    .survivor-action-btn.active { outline:2px solid #f1c40f; box-shadow:0 0 10px rgba(241,196,15,0.4); border-color:#f1c40f; }
+    .survivor-action-btn:disabled { opacity:0.35; cursor:not-allowed; }
+    .actions-list.compact { display:block; margin-bottom:8px; }
+    .camp-work-grid { display:grid; grid-template-columns:minmax(420px, 1.65fr) minmax(240px, 0.75fr); gap:14px; align-items:start; margin-bottom:14px; }
+    #actions-list { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+    #actions-list > .project-meta,
+    #actions-list > .camp-column-title,
+    #actions-list > [data-action="light_fire"] { grid-column:1 / -1; }
+    .camp-column {
+      background:#202020;
+      border:1px solid #343434;
+      border-radius:12px;
+      padding:12px;
+      min-height:180px;
+    }
+    .camp-column-title {
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:0.12em;
+      color:#f1c40f;
+      margin-bottom:10px;
+    }
+    .project-card {
+      background:#292929;
+      border:1px solid #3c3c3c;
+      border-radius:10px;
+      padding:10px;
+      margin-bottom:0;
+    }
+    .project-head { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+    .project-name { font-weight:700; font-size:13px; }
+    .project-meta { font-size:11px; color:#aaa; margin-top:3px; }
+    .project-progress {
+      height:8px;
+      background:#151515;
+      border-radius:999px;
+      overflow:hidden;
+      margin-top:8px;
+      border:1px solid #333;
+    }
+    .project-progress-fill { height:100%; background:linear-gradient(90deg, #e67e22, #f1c40f); width:0%; }
+    .project-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    .project-btn {
+      border:1px solid #454545;
+      background:#222;
+      color:#ddd;
+      border-radius:7px;
+      padding:6px 8px;
+      font-size:11px;
+      cursor:pointer;
+    }
+    .project-btn:hover:not(:disabled) { background:#303030; border-color:#777; }
+    .project-btn:disabled { opacity:0.35; cursor:not-allowed; }
+    .project-select {
+      min-width:135px;
+      border:1px solid #454545;
+      background:#181818;
+      color:#ddd;
+      border-radius:7px;
+      padding:6px 8px;
+      font-size:11px;
+    }
+    .village-scene {
+      min-height:170px;
+      border-radius:12px;
+      border:1px solid #3b3b3b;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(241,196,15,0.10), transparent 22%),
+        linear-gradient(160deg, #18241c, #141414 65%);
+      padding:12px;
+      overflow:hidden;
+    }
+    .village-assets { display:flex; align-items:end; gap:10px; flex-wrap:wrap; min-height:88px; }
+    .village-asset {
+      width:56px;
+      height:56px;
+      border-radius:10px;
+      object-fit:contain;
+      background:rgba(0,0,0,0.22);
+      border:1px solid rgba(255,255,255,0.08);
+      padding:4px;
+    }
+    .village-asset.fire { width:64px; height:64px; }
+    .village-placeholder {
+      width:56px;
+      height:56px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:10px;
+      background:rgba(0,0,0,0.24);
+      border:1px solid rgba(255,255,255,0.08);
+      font-size:28px;
+    }
+    .village-effects { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px; margin-top:12px; }
+    .village-effect {
+      background:#242424;
+      border:1px solid #373737;
+      border-radius:8px;
+      padding:7px;
+      font-size:11px;
+      color:#bdbdbd;
+    }
+    .village-effect strong { display:block; color:#f1c40f; font-size:13px; margin-top:2px; }
+    .survivor-card { position:relative; overflow:visible; }
+    .survivor-hover-card {
+      position:fixed;
+      left:var(--hover-left, 50vw);
+      top:var(--hover-top, 80px);
+      width:240px;
+      padding:10px;
+      background:#191919;
+      border:1px solid #4a4a4a;
+      border-radius:10px;
+      box-shadow:0 12px 30px rgba(0,0,0,0.4);
+      z-index:20;
+      opacity:0;
+      pointer-events:none;
+      transform:translateY(6px);
+      transition:opacity 0.16s ease, transform 0.16s ease;
+    }
+    .survivor-card:hover .survivor-hover-card { opacity:1; transform:translateY(0); }
+    .survivor-portrait {
+      width:100%;
+      aspect-ratio:3/4;
+      object-fit:cover;
+      border-radius:8px;
+      background:#111;
+      border:1px solid #3a3a3a;
+      display:block;
+    }
+    .survivor-portrait.fallback {
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#999;
+      font-size:12px;
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+    }
+    .survivor-hover-name { font-size:16px; font-weight:700; margin-top:8px; }
+    .survivor-hover-subtitle { font-size:12px; color:#cfcfcf; margin-top:2px; }
+    .survivor-hover-text { font-size:11px; color:#a9a9a9; margin-top:6px; line-height:1.35; }
+    .survivor-chip-row { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
+    .survivor-chip {
+      padding:2px 6px;
+      border-radius:999px;
+      background:#2a2a2a;
+      border:1px solid #3b3b3b;
+      font-size:10px;
+      color:#ddd;
+    }
+    .survivor-chip.positive {
+      background:#1f3023;
+      border-color:#35573e;
+      color:#b7f2c2;
+    }
+    .survivor-chip.negative {
+      background:#352020;
+      border-color:#6b3434;
+      color:#ffb4b4;
+    }
+    .arrival-overlay {
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background:rgba(0,0,0,0.65);
+      z-index:100;
+      padding:24px;
+    }
+    .arrival-overlay.visible { display:flex; }
+    .arrival-card {
+      width:min(680px, 100%);
+      background:linear-gradient(145deg, #1f1f1f, #121212);
+      border:1px solid #4b4b4b;
+      border-radius:16px;
+      box-shadow:0 20px 50px rgba(0,0,0,0.5);
+      overflow:hidden;
+      display:grid;
+      grid-template-columns:minmax(220px, 260px) 1fr;
+    }
+    .arrival-media { background:#0f0f0f; padding:14px; }
+    .council-card { width:min(860px, 100%); grid-template-columns:minmax(280px, 360px) 1fr; }
+    .council-card .arrival-media img { width:100%; height:100%; min-height:360px; object-fit:cover; border-radius:10px; border:1px solid #333; background:#111; }
+    .council-card .arrival-content { max-height:82vh; overflow:auto; }
+    .council-card .arrival-text { font-size:14px; line-height:1.55; color:#d0d0d0; }
+    .council-card .arrival-text p { margin:0 0 10px; }
+    .arrival-content { padding:18px; }
+    .arrival-eyebrow { font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:#f1c40f; }
+    .arrival-title { font-size:26px; font-weight:800; margin-top:4px; }
+    .arrival-subtitle { font-size:13px; color:#d0d0d0; margin-top:4px; }
+    .arrival-text { font-size:12px; color:#ababab; line-height:1.45; margin-top:10px; }
+    .arrival-close {
+      margin-top:14px;
+      padding:10px 14px;
+      border-radius:10px;
+      border:1px solid #5a5a5a;
+      background:#2b2b2b;
+      color:#eee;
+      cursor:pointer;
+    }
+    .arrival-close:hover { background:#353535; }
+    .skill-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px; margin-top:10px; }
+    .skill-pill {
+      display:flex;
+      justify-content:space-between;
+      gap:8px;
+      font-size:11px;
+      padding:6px 8px;
+      background:#242424;
+      border:1px solid #353535;
+      border-radius:8px;
+    }
+    .skill-pill strong.positive { color:#8ee08e; }
+    .skill-pill strong.negative { color:#ff8f8f; }
+    .debug-section { margin-top:10px; padding-top:8px; border-top:1px solid #323232; }
+    .debug-title { font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:#8f8f8f; margin-bottom:6px; }
+    .debug-row {
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:8px;
+      font-size:11px;
+      padding:4px 0;
+      color:#cfcfcf;
+    }
+    .debug-row span:last-child { color:#f1c40f; font-family:Consolas, monospace; }
+    .recommendation-box {
+      margin-top:10px;
+      padding:8px 10px;
+      background:#1c2b1f;
+      border:1px solid #35573e;
+      border-radius:8px;
+    }
+    .recommendation-title {
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:0.12em;
+      color:#9fd3a8;
+      margin-bottom:4px;
+    }
+    .recommendation-text {
+      font-size:12px;
+      color:#daf1de;
+      line-height:1.35;
+    }
+    .view-tabs { display:flex; gap:8px; margin-bottom:12px; }
+    .view-tab {
+      border:1px solid #454545;
+      background:#222;
+      color:#ddd;
+      border-radius:999px;
+      padding:7px 12px;
+      font-size:12px;
+      cursor:pointer;
+    }
+    .view-tab.active { border-color:#f1c40f; color:#f1c40f; background:#2b2616; }
+    .game-view.hidden { display:none; }
+    .expedition-layout { display:grid; grid-template-columns:minmax(0, 540px) minmax(260px, 1fr); gap:14px; align-items:start; }
+    .expedition-map {
+      display:grid;
+      grid-template-columns:repeat(11, 1fr);
+      gap:3px;
+      background:#111;
+      border:1px solid #343434;
+      border-radius:12px;
+      padding:8px;
+      width:100%;
+      max-width:540px;
+      box-sizing:border-box;
+    }
+    .map-tile {
+      aspect-ratio:1 / 1;
+      border:1px solid #242424;
+      border-radius:5px;
+      background:#080808;
+      background-size:cover;
+      background-position:center;
+      position:relative;
+      overflow:hidden;
+    }
+    .map-tile.clickable { cursor:pointer; }
+    .map-tile.clickable:hover { outline:1px solid rgba(241,196,15,0.45); }
+    .map-tile.route { outline:2px solid rgba(241,196,15,0.7); box-shadow:inset 0 0 0 1px rgba(241,196,15,0.35); }
+    .map-tile.unknown::after { content:'?'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#555; background:#0b0b0b; font-weight:700; }
+    .map-tile.current { outline:2px solid #f1c40f; box-shadow:0 0 12px rgba(241,196,15,0.55); z-index:1; }
+    .map-tile-badge {
+      position:absolute;
+      top:3px;
+      right:3px;
+      width:16px;
+      height:16px;
+      border-radius:999px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:11px;
+      font-weight:700;
+      color:#20160a;
+      background:#f4c542;
+      box-shadow:0 1px 4px rgba(0,0,0,0.45);
+    }
+    .expedition-card {
+      background:#202020;
+      border:1px solid #343434;
+      border-radius:12px;
+      padding:12px;
+    }
+    .expedition-hero {
+      width:100%;
+      aspect-ratio:16 / 10;
+      object-fit:cover;
+      border-radius:10px;
+      border:1px solid #333;
+      background:#111;
+      margin-bottom:10px;
+    }
+    .expedition-controls { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-top:10px; }
+    .expedition-controls .project-btn:nth-child(1) { grid-column:2; }
+    .expedition-controls .project-btn:nth-child(2) { grid-column:1; }
+    .expedition-controls .project-btn:nth-child(3) { grid-column:2; }
+    .expedition-controls .project-btn:nth-child(4) { grid-column:3; }
+    .expedition-log { max-height:160px; overflow:auto; margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+    @media (max-width: 900px) {
+      .camp-work-grid { grid-template-columns:1fr; }
+      #actions-list { grid-template-columns:1fr; }
+      .expedition-layout { grid-template-columns:1fr; }
+      .survivor-hover-card { left:12px; right:12px; top:72px; width:auto; max-height:calc(100vh - 96px); overflow:auto; }
+      .arrival-card { grid-template-columns:1fr; }
+      .council-card .arrival-media img { min-height:220px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <h1 class="game-title">LOST</h1>
+        <div class="status-item"><span>📅</span><span id="day">1</span></div>
+        <div class="status-item"><span>🕐</span><span id="time">06:00</span></div>
+        <div class="status-item"><span>⚠️</span><span id="threat">20.0%</span></div>
+      </div>
+      <div class="top-bar-center" id="job-metrics"></div>
+      <div class="top-bar-right">
+        <div class="status-item"><span>&#128154;</span><span id="morale">- %</span></div>
+        <div class="status-item clickable" id="difficulty-toggle" title="Byt svårighetsgrad"><span>🎚️</span><span id="difficulty-label">Normal</span></div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <aside class="panel">
+        <h2 class="panel-header">Resurser</h2>
+        <div class="fire-indicator">
+          <span>Eld:</span>
+          <div class="fire-level" id="fire-pips">
+            <span class="fire-pip"></span><span class="fire-pip"></span>
+            <span class="fire-pip"></span><span class="fire-pip"></span>
+          </div>
+          <span id="fire-status" class="text-muted">Slocknad</span>
+        </div>
+        <div class="resource-grid" id="resources"></div>
+      </aside>
+
+      <section class="panel">
+        <div class="view-tabs">
+          <button class="view-tab active" data-view-tab="camp">Läger</button>
+          <button class="view-tab" data-view-tab="expedition">Expedition</button>
+          <button class="view-tab" data-view-tab="raft">Flotten</button>
+        </div>
+        <div class="game-view" id="camp-view">
+          <h2 class="panel-header">Lägrets arbete</h2>
+          <div class="camp-work-grid">
+            <div class="camp-column">
+              <div class="camp-column-title">Tillverkning</div>
+              <div id="actions-list"></div>
+            </div>
+            <div class="camp-column">
+              <div class="camp-column-title">Vår by</div>
+              <div id="village-view"></div>
+            </div>
+          </div>
+          <div class="job-section">
+            <h2 class="panel-header">Överlevare</h2>
+            <div id="player-status"></div>
+          </div>
+        </div>
+        <div class="game-view hidden" id="expedition-view">
+          <h2 class="panel-header">Expedition</h2>
+          <div id="expedition-root"></div>
+        </div>
+        <div class="game-view hidden" id="raft-view">
+          <h2 class="panel-header">Flottens Byggplats</h2>
+          <div id="raft-root"></div>
+        </div>
+        <div class="game-view hidden" id="sail-view">
+          <h2 class="panel-header">Till Havs</h2>
+          <div id="sail-root"></div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <h2 class="panel-header">Logg</h2>
+        <div class="event-log" id="event-log"></div>
+        <h2 class="panel-header mt-md">Upptäckter</h2>
+        <div id="discoveries-list"></div>
+      </aside>
+    </main>
+
+    <footer class="controls">
+      <div class="speed-controls">
+        <button class="speed-btn" data-speed="0">⏸</button>
+        <button class="speed-btn active" data-speed="1">1×</button>
+        <button class="speed-btn" data-speed="2">2×</button>
+        <button class="speed-btn" data-speed="4">4×</button>
+		<button class="speed-btn" data-speed="6">6×</button>
+      </div>
+      <div class="action-buttons">
+        <button class="btn btn-secondary" id="save-btn">💾</button>
+        <button class="btn btn-secondary" id="load-btn">📂</button>
+        <button class="btn btn-secondary" id="new-btn">🆕</button>
+        <button class="btn btn-primary" id="tick-btn">⏯</button>
+      </div>
+    </footer>
+  </div>
+  <div class="arrival-overlay" id="arrival-overlay">
+    <div class="arrival-card">
+      <div class="arrival-media" id="arrival-media"></div>
+      <div class="arrival-content">
+        <div class="arrival-eyebrow">Ny Överlevare</div>
+        <div class="arrival-title" id="arrival-title">Okänd</div>
+        <div class="arrival-subtitle" id="arrival-subtitle"></div>
+        <div class="arrival-text" id="arrival-text"></div>
+        <div class="survivor-chip-row" id="arrival-traits"></div>
+        <div class="skill-grid" id="arrival-skills"></div>
+        <button class="arrival-close" id="arrival-close">Fortsätt</button>
+      </div>
+    </div>
+  </div>
+  <div class="arrival-overlay" id="council-overlay">
+    <div class="arrival-card council-card">
+      <div class="arrival-media" id="council-media"></div>
+      <div class="arrival-content">
+        <div class="arrival-eyebrow" id="council-eyebrow">Fas 2</div>
+        <div class="arrival-title" id="council-title">Öråd</div>
+        <div class="arrival-subtitle" id="council-subtitle"></div>
+        <div class="arrival-text" id="council-text"></div>
+        <button class="arrival-close" id="council-close">Fortsätt</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="resources/js/main.js"></script>
+</body>
+</html>

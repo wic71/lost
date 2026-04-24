@@ -1,0 +1,136 @@
+{
+  "discoveries": [
+    {
+      "id": "fire_building",
+      "name": "Eldhantering",
+      "priority": 5,
+      "prerequisites": [],
+      "byIdeas": false,
+      "byArrival": false,
+      "unlockJobs": [],
+      "logIdeas": [],
+      "logArrival": []
+    },
+    {
+      "id": "clay",
+      "name": "Lera",
+      "priority": 10,
+      "prerequisites": [],
+      "byIdeas": true,
+      "byArrival": true,
+      "unlockJobs": ["clay"],
+      "logIdeas": ["{name} kommer på en idé. Vi kan samla lera vid bäcken."],
+      "logArrival": ["{name} kommer till lägret med lera från bäcken."]
+    },
+    {
+      "id": "stone",
+      "name": "Sten",
+      "priority": 20,
+      "prerequisites": [],
+      "byIdeas": true,
+      "byArrival": true,
+      "unlockJobs": ["stone"],
+      "logIdeas": ["{name} kommer på en idé. Vi borde samla bättre sten till verktyg."],
+      "logArrival": ["{name} visar vass sten från stranden."]
+    },
+    {
+      "id": "bamboo",
+      "name": "Bambu",
+      "priority": 30,
+      "prerequisites": ["clay"],
+      "byIdeas": true,
+      "byArrival": true,
+      "unlockJobs": ["bamboo"],
+      "logIdeas": ["{name} kommer på en idé. Det finns bambu längre bort som vi kan använda om vi har något att fälla den med."],
+      "logArrival": ["{name} berättar om bambu längre in på ön."]
+    },
+    {
+      "id": "stone_knife",
+      "name": "Stenkniv",
+      "priority": 32,
+      "prerequisites": ["stone"],
+      "byIdeas": true,
+      "byArrival": true,
+      "unlockJobs": [],
+      "logIdeas": ["{name} visar hur en vass sten kan bindas till ett enkelt handtag. Vi kan göra stenknivar."],
+      "logArrival": ["{name} känner igen bra sten till enkla knivar."]
+    },
+    {
+      "id": "rope",
+      "name": "Rep",
+      "priority": 34,
+      "prerequisites": [],
+      "byIdeas": true,
+      "byArrival": true,
+      "unlockJobs": [],
+      "logIdeas": ["{name} testar att tvinna fibrer till rep. Det håller bättre än väntat."],
+      "logArrival": ["{name} vet hur man tvinnar starkare rep av fibrer."]
+    },
+    {
+      "id": "spear",
+      "name": "Spjut",
+      "priority": 36,
+      "prerequisites": ["stone_knife"],
+      "byIdeas": true,
+      "byArrival": true,
+      "unlockJobs": [],
+      "logIdeas": ["{name} föreslår att vi binder vass sten på raka grenar. Spjut kan skydda lägret."],
+      "logArrival": ["{name} har gjort enkla spjut tidigare."]
+    },
+    {
+      "id": "net",
+      "name": "Nät",
+      "priority": 38,
+      "prerequisites": ["rope"],
+      "byIdeas": true,
+      "byArrival": true,
+      "unlockJobs": [],
+      "logIdeas": ["{name} får idén att knyta fibrer till ett enkelt fisknät."],
+      "logArrival": ["{name} kan grunderna i att knyta nät."]
+    },
+    {
+      "id": "pots",
+      "name": "Krukor",
+      "priority": 40,
+      "prerequisites": ["clay", "fire_building"],
+      "byIdeas": true,
+      "byArrival": true,
+      "unlockJobs": [],
+      "logIdeas": ["{name} kommer på en idé. Vi kan bränna lera till krukor."],
+      "logArrival": ["{name} vet hur man bränner lera till krukor."]
+    },
+    {
+      "id": "hut_building",
+      "name": "Husbygge",
+      "priority": 50,
+      "prerequisites": ["clay", "bamboo"],
+      "byIdeas": true,
+      "byArrival": true,
+      "unlockJobs": [],
+      "logIdeas": ["{name} kommer på en idé. Lera och bambu kan bli väggar och tak."],
+      "logArrival": ["{name} har byggt enkla skydd av lera och bambu tidigare."]
+    },
+    {
+      "id": "axe",
+      "name": "Yxa",
+      "priority": 60,
+      "prerequisites": ["rope", "stone_knife"],
+      "byIdeas": true,
+      "byArrival": true,
+      "unlockJobs": [],
+      "logIdeas": ["{name} skissar på ett tyngre stenverktyg. Med en yxa kan vi hugga timmer."],
+      "logArrival": ["{name} vet hur man fäster ett stenhuvud till en enkel yxa."]
+    },
+    {
+      "id": "backpack",
+      "name": "Ryggsäck",
+      "priority": 70,
+      "prerequisites": ["rope"],
+      "byIdeas": true,
+      "byArrival": true,
+      "unlockJobs": [],
+      "logIdeas": ["{name} föreslår att läder och rep kan bli enkla ryggsäckar."],
+      "logArrival": ["{name} har lagat och sytt väskor tidigare."]
+    }
+  ]
+}

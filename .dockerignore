@@ -1,0 +1,11 @@
+.git
+.gitignore
+archive
+node_modules
+tmp
+tmp*
+*.log
+ docker-compose*
+README*
+.DS_Store
+Thumbs.db

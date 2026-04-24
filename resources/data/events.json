@@ -1,0 +1,109 @@
+{
+  "spawnFromFire": {
+    "minFireLevel": 4,
+    "intervalTicks": 4,
+    "baseChance": 0.15,
+    "successLog": "{name} hittar lägret tack vare den stora elden.",
+    "waitingLog": "Signalelden brinner starkt, men ingen syns ännu."
+  },
+  "animalAttack": {
+    "baseChance": 0.012,
+    "maxFireLevelExclusive": 3,
+    "populationRisk": {
+      "soloMultiplier": 0.55,
+      "perExtraSurvivor": 0.30,
+      "maxMultiplier": 2.7
+    },
+    "populationThresholds": {
+      "sixPlus": {
+        "guardExpectation": 1.0,
+        "chanceMultiplier": 1.25,
+        "damageMultiplier": 1.15,
+        "moraleMultiplier": 1.1
+      },
+      "fifteenPlus": {
+        "guardExpectation": 2.0,
+        "chanceMultiplier": 1.55,
+        "damageMultiplier": 1.35,
+        "moraleMultiplier": 1.25
+      }
+    },
+    "healthLoss": 10,
+    "moraleLoss": 5,
+    "log": "Vilda djur anfaller. {name} blir skadad.",
+    "guardChanceReductionPerFactor": 0.28,
+    "guardDamageReductionPerFactor": 0.20,
+    "guardShortageChanceMultiplierPerFactor": 0.35,
+    "guardShortageDamageMultiplierPerFactor": 0.25,
+    "guardRepelChancePerFactor": 0.24,
+    "guardRepelLog": "{guards} håller djuren borta från lägret.",
+    "guardRewardFood": 0.2,
+    "guardRewardLeather": 0.12
+  },
+  "rats": {
+    "baseChance": 0.012,
+    "maxFireLevelExclusive": 3,
+    "populationRisk": {
+      "soloMultiplier": 0.60,
+      "perExtraSurvivor": 0.24,
+      "maxMultiplier": 2.4
+    },
+    "populationThresholds": {
+      "sixPlus": {
+        "guardExpectation": 1.0,
+        "chanceMultiplier": 1.35,
+        "lossMultiplier": 1.25
+      },
+      "fifteenPlus": {
+        "guardExpectation": 2.0,
+        "chanceMultiplier": 1.75,
+        "lossMultiplier": 1.5
+      }
+    },
+    "minFood": 5,
+    "minLoss": 1,
+    "maxExtraLoss": 1.5,
+    "log": "Råttor kommer åt maten och äter {amount} mat.",
+    "guardChanceReductionPerFactor": 0.22,
+    "guardShortageChanceMultiplierPerFactor": 0.4
+  },
+  "storm": {
+    "baseChance": 0.01,
+    "populationRisk": {
+      "soloMultiplier": 0.65,
+      "perExtraSurvivor": 0.18,
+      "maxMultiplier": 2.0
+    },
+    "populationThresholds": {
+      "sixPlus": {
+        "shelterExpectation": 0.45,
+        "chanceMultiplier": 1.3,
+        "lossMultiplier": 1.35,
+        "waterLossMultiplier": 1.25,
+        "moraleMultiplier": 1.1,
+        "healthMultiplier": 1.1
+      },
+      "fifteenPlus": {
+        "shelterExpectation": 0.8,
+        "chanceMultiplier": 1.65,
+        "lossMultiplier": 1.75,
+        "waterLossMultiplier": 1.6,
+        "moraleMultiplier": 1.25,
+        "healthMultiplier": 1.3
+      }
+    },
+    "minFood": 3,
+    "minLoss": 1,
+    "maxExtraLoss": 2,
+    "waterMinLoss": 0.6,
+    "waterMaxExtraLoss": 1.2,
+    "moraleLoss": 3,
+    "healthLossNoShelterAtNight": 2,
+    "shelterChanceReductionPerCoverage": 0.45,
+    "shelterShortageChanceMultiplierPerCoverage": 0.8,
+    "foodProtectionPerCoverage": 0.85,
+    "waterProtectionPerCoverage": 0.9,
+    "log": "En storm slår in över lägret och förstör {amount} mat och {water} vatten.",
+    "shelterLog": "Husen skyddar en del av maten och vattnet från stormen."
+  }
+}

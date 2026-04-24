@@ -1,0 +1,1 @@
+Efter en hård färd genom tjock växtlighet och svår terräng har [explorer_name] äntligen banat sig fram till målet på kartan. En ny väg ligger öppen genom djungeln, och [explorer_name] är nu redo att fortsätta expeditionen mot nästa okända plats.

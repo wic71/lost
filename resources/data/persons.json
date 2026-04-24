@@ -1,0 +1,600 @@
+﻿{
+  "skillKeys": [
+    "wood",
+    "food",
+    "water",
+    "care",
+    "build",
+    "guard",
+    "explore",
+    "fish",
+    "hunt",
+    "craft"
+  ],
+  "newcomerNames": [
+    "Alex",
+    "Sara",
+    "Marcus",
+    "Emma",
+    "Jon",
+    "Lisa",
+    "Ola",
+    "Anna",
+    "Kalle",
+    "Mira",
+    "Nora",
+    "Elias",
+    "Muhammad",
+    "Clarke",
+    "Fatima",
+    "Priya",
+    "Gurpreet",
+    "Aisha",
+    "Hassan",
+    "Ben",
+    "Maria",
+    "Sofia",
+    "Koffi",
+    "Aya",
+    "David",
+    "Elin",
+    "Lennart",
+	"Ming",
+	"Marisol",
+	"Teresa",
+	"Keiko",
+	"Nadia"
+  ],
+  "playerTemplate": {
+    "name": "Du",
+    "health": 80,
+    "hunger": 35,
+    "thirst": 30,
+    "fatigue": 30,
+    "morale": 70
+  },
+  "survivorDefaults": {
+    "health": 80,
+    "hunger": 25,
+    "thirst": 25,
+    "fatigue": 30,
+    "morale": 70
+  },
+  "baseSkills": {
+    "wood": 1,
+    "food": 1,
+    "water": 1,
+    "care": 1,
+    "build": 1,
+    "guard": 1,
+    "explore": 1,
+    "fish": 0,
+    "hunt": 0,
+    "craft": 1
+  },
+  "generationRules": {
+    "preventDuplicateNames": true,
+    "preventDuplicateExactProfile": true,
+    "traitsPerSurvivorMin": 1,
+    "traitsPerSurvivorMax": 2,
+    "positiveTraitChance": 0.8,
+    "negativeTraitChance": 0.45,
+    "noneBackgroundExtraTraits": 1,
+    "clampSkills": {
+      "min": -2,
+      "max": 5
+    }
+  },
+  "backgroundWeights": {
+    "builder": 7,
+    "nurse": 4,
+    "hunter": 4,
+    "fisher": 4,
+    "mechanic": 5,
+    "cook": 5,
+    "teacher": 5,
+    "soldier": 2,
+    "office_worker": 7,
+    "student": 6,
+    "parent": 6,
+    "carpenter": 4,
+    "guard": 3,
+    "athlete": 4,
+    "retired_nurse": 2,
+    "tour_guide": 2,
+    "nature_lover": 3,
+    "driver": 4,
+    "cleaner": 4,
+    "none": 5
+  },
+  "traitPools": {
+    "positive": [
+      "strong",
+      "brave",
+      "careful",
+      "enduring",
+      "empathetic",
+      "fast",
+      "practical",
+      "optimistic",
+      "fit",
+      "calm"
+    ],
+    "negative": [
+      "nervous",
+      "clumsy",
+      "lazy",
+      "fearful",
+      "fragile",
+      "careless",
+      "stubborn",
+      "selfish"
+    ]
+  },
+  "backgrounds": {
+    "builder": {
+      "id": "builder",
+      "name": "Byggarbetare",
+      "description": "Erfaren inom konstruktion och tungt arbete.",
+      "bonuses": {
+        "build": 2,
+        "wood": 1
+      },
+      "penalties": {
+        "care": -1
+      },
+      "specialEffect": "Byggprojekt får 10% mindre risk för fel."
+    },
+    "nurse": {
+      "id": "nurse",
+      "name": "Sjuksköterska",
+      "description": "Medicinsk utbildning och erfarenhet.",
+      "bonuses": {
+        "care": 2,
+        "guard": 1
+      },
+      "penalties": {
+        "wood": -1
+      },
+      "specialEffect": "Minskar risk att sjukdom förvärras."
+    },
+    "hunter": {
+      "id": "hunter",
+      "name": "Jägare",
+      "description": "Erfaren jägare och samlare.",
+      "bonuses": {
+        "food": 2,
+        "hunt": 2,
+        "explore": 1
+      },
+      "penalties": {
+        "care": -1
+      },
+      "specialEffect": "Bättre utfall vid fällor och större chans att upptäcka hot."
+    },
+    "fisher": {
+      "id": "fisher",
+      "name": "Fiskare",
+      "description": "Van vid kustarbete och fiskredskap.",
+      "bonuses": {
+        "food": 2,
+        "fish": 2,
+        "guard": 1
+      },
+      "penalties": {
+        "build": -1
+      },
+      "specialEffect": "Bonus vid kustnära resursinsamling."
+    },
+    "mechanic": {
+      "id": "mechanic",
+      "name": "Mekaniker",
+      "description": "Teknisk bakgrund och bra på att lösa problem.",
+      "bonuses": {
+        "build": 1,
+        "craft": 2,
+        "explore": 1
+      },
+      "penalties": {
+        "care": -1
+      },
+      "specialEffect": "Ökad chans att få ut extra nytta ur vrakdelar."
+    },
+    "cook": {
+      "id": "cook",
+      "name": "Kock",
+      "description": "Kulinarisk erfarenhet och vana att hushålla med råvaror.",
+      "bonuses": {
+        "food": 2,
+        "care": 1
+      },
+      "penalties": {
+        "guard": -1
+      },
+      "specialEffect": "Minskar matsvinn och höjer moral."
+    },
+    "teacher": {
+      "id": "teacher",
+      "name": "Lärare",
+      "description": "Pedagogisk erfarenhet och lugn under press.",
+      "bonuses": {
+        "care": 1,
+        "guard": 1,
+        "explore": 1
+      },
+      "penalties": {
+        "hunt": -1
+      },
+      "passiveEffect": {
+        "moraleBonus": 1,
+        "conflictRiskReduction": 0.04
+      },
+      "specialEffect": "Liten passiv bonus till gruppmoral."
+    },
+    "soldier": {
+      "id": "soldier",
+      "name": "Militär",
+      "description": "Militär bakgrund med fokus på säkerhet och disciplin.",
+      "bonuses": {
+        "guard": 2,
+        "explore": 1,
+        "hunt": 1
+      },
+      "penalties": {
+        "care": -1
+      },
+      "passiveEffect": {
+        "conflictRiskReduction": 0.03
+      },
+      "specialEffect": "Minskar panik vid anfall."
+    },
+    "office_worker": {
+      "id": "office_worker",
+      "name": "Kontorist",
+      "description": "Noggrann men inte van vid hårt fysiskt arbete.",
+      "bonuses": {
+        "care": 1,
+        "food": 1
+      },
+      "penalties": {
+        "wood": -1,
+        "build": -1
+      },
+      "specialEffect": "Lägre risk för misstag i känsliga jobb."
+    },
+    "student": {
+      "id": "student",
+      "name": "Student",
+      "description": "Ung, anpassningsbar och snabb att lära.",
+      "bonuses": {
+        "explore": 1,
+        "craft": 1
+      },
+      "penalties": {
+        "guard": -1
+      },
+      "passiveEffect": {
+        "discoveryChanceBonus": 0.08,
+        "discoveryChanceMultiplier": 1.75
+      },
+      "specialEffect": "Lär sig snabbare, får en liten slumpmässig talangbonus och har mycket lättare att komma på nya idéer."
+    },
+    "parent": {
+      "id": "parent",
+      "name": "Förälder",
+      "description": "Van att ta hand om andra och hålla huvudet kallt.",
+      "bonuses": {
+        "care": 1,
+        "guard": 1,
+        "food": 1
+      },
+      "penalties": {
+        "explore": -1
+      },
+      "passiveEffect": {
+        "moraleBonus": 1,
+        "conflictRiskReduction": 0.03
+      },
+      "specialEffect": "Bonus till gruppens återhämtning under stress."
+    },
+    "carpenter": {
+      "id": "carpenter",
+      "name": "Snickare",
+      "description": "Precisionshantverkare med känsla för konstruktion.",
+      "bonuses": {
+        "build": 2,
+        "craft": 1,
+        "wood": 1
+      },
+      "penalties": {
+        "fish": -1
+      },
+      "specialEffect": "Effektivare på mindre konstruktioner."
+    },
+    "guard": {
+      "id": "guard",
+      "name": "Vakt",
+      "description": "Tidigare ordningsvakt med öga för lägersäkerhet.",
+      "bonuses": {
+        "guard": 2,
+        "wood": 1
+      },
+      "penalties": {
+        "care": -1
+      },
+      "specialEffect": "Starkare på nattvakt."
+    },
+    "athlete": {
+      "id": "athlete",
+      "name": "Idrottare",
+      "description": "Fysiskt vältränad och snabb.",
+      "bonuses": {
+        "wood": 2,
+        "guard": 1,
+        "explore": 1
+      },
+      "penalties": {
+        "craft": -1
+      },
+      "specialEffect": "Blir mindre snabbt utmattad."
+    },
+    "retired_nurse": {
+      "id": "retired_nurse",
+      "name": "Pensionerad sjukvårdare",
+      "description": "Erfaren men äldre, stark i vård men svagare i tungt arbete.",
+      "bonuses": {
+        "care": 2
+      },
+      "penalties": {
+        "wood": -1,
+        "explore": -1,
+        "hunt": -1
+      },
+      "specialEffect": "Extra stark vid vård men sämre i hårt arbete."
+    },
+    "tour_guide": {
+      "id": "tour_guide",
+      "name": "Turistguide",
+      "description": "Van vid orientering, ledarskap och att läsa terräng.",
+      "bonuses": {
+        "explore": 2,
+        "guard": 1
+      },
+      "penalties": {
+        "build": -1
+      },
+      "specialEffect": "Lägre risk att expeditioner går vilse."
+    },
+    "nature_lover": {
+      "id": "nature_lover",
+      "name": "Naturvan",
+      "description": "Kunskap om växter, natur och tålamod.",
+      "bonuses": {
+        "food": 1,
+        "care": 1,
+        "explore": 1
+      },
+      "penalties": {
+        "guard": -1
+      },
+      "specialEffect": "Högre chans att hitta örter."
+    },
+    "driver": {
+      "id": "driver",
+      "name": "Chaufför",
+      "description": "Praktisk och uthållig med vana att hålla fokus länge.",
+      "bonuses": {
+        "wood": 1,
+        "guard": 1,
+        "explore": 1
+      },
+      "penalties": {
+        "care": -1
+      },
+      "specialEffect": "Något bättre i transporter och längre uppdrag."
+    },
+    "cleaner": {
+      "id": "cleaner",
+      "name": "Städare",
+      "description": "Serviceerfarenhet med fokus på hygien och ordning.",
+      "bonuses": {
+        "care": 1,
+        "food": 1
+      },
+      "penalties": {
+        "hunt": -1
+      },
+      "specialEffect": "Minskar disease pressure."
+    },
+    "none": {
+      "id": "none",
+      "name": "Vanlig person",
+      "description": "Ingen tydlig yrkeserfarenhet som sticker ut.",
+      "bonuses": {},
+      "penalties": {},
+      "specialEffect": "Får extra traits i stället för tydlig yrkesprofil."
+    }
+  },
+  "traits": {
+    "strong": {
+      "id": "strong",
+      "name": "Stark",
+      "bonuses": {
+        "wood": 1,
+        "build": 1
+      },
+      "description": "Bättre på tunga uppgifter."
+    },
+    "brave": {
+      "id": "brave",
+      "name": "Modig",
+      "bonuses": {
+        "guard": 1,
+        "explore": 1
+      },
+      "description": "Mindre panik vid anfall."
+    },
+    "careful": {
+      "id": "careful",
+      "name": "Noggrann",
+      "bonuses": {
+        "care": 1,
+        "food": 1,
+        "craft": 1
+      },
+      "description": "Färre misstag i känsliga jobb."
+    },
+    "enduring": {
+      "id": "enduring",
+      "name": "Uthållig",
+      "bonuses": {
+        "wood": 1,
+        "explore": 1
+      },
+      "description": "Trötthet byggs upp långsammare."
+    },
+    "empathetic": {
+      "id": "empathetic",
+      "name": "Empatisk",
+      "bonuses": {
+        "care": 1
+      },
+      "passiveEffect": {
+        "conflictRiskReduction": 0.03
+      },
+      "description": "Bonus till återhämtning hos andra."
+    },
+    "fast": {
+      "id": "fast",
+      "name": "Snabb",
+      "bonuses": {
+        "wood": 1,
+        "explore": 1
+      },
+      "description": "Reagerar bättre på plötsliga händelser."
+    },
+    "practical": {
+      "id": "practical",
+      "name": "Praktisk",
+      "bonuses": {
+        "build": 1,
+        "food": 1,
+        "craft": 1
+      },
+      "description": "Bra allround-trait."
+    },
+    "optimistic": {
+      "id": "optimistic",
+      "name": "Optimistisk",
+      "bonuses": {},
+      "description": "Liten moralbonus.",
+      "passiveEffect": {
+        "moraleBonus": 2,
+        "conflictRiskReduction": 0.02
+      }
+    },
+    "fit": {
+      "id": "fit",
+      "name": "Vältränad",
+      "bonuses": {
+        "guard": 1,
+        "wood": 1
+      },
+      "description": "Fysiskt stark och seg."
+    },
+    "calm": {
+      "id": "calm",
+      "name": "Kall i kris",
+      "bonuses": {
+        "guard": 1,
+        "care": 1
+      },
+      "passiveEffect": {
+        "conflictRiskReduction": 0.05
+      },
+      "description": "Mindre straff under katastrofhändelser."
+    },
+    "nervous": {
+      "id": "nervous",
+      "name": "Lättstressad",
+      "penalties": {
+        "guard": -1,
+        "explore": -1
+      },
+      "description": "Sämre vid nattanfall och sjukdomsutbrott.",
+      "passiveEffect": {
+        "conflictRisk": 0.04
+      }
+    },
+    "clumsy": {
+      "id": "clumsy",
+      "name": "Klumpig",
+      "penalties": {
+        "build": -1,
+        "craft": -1
+      },
+      "description": "Högre risk för småskador och misslyckanden."
+    },
+    "lazy": {
+      "id": "lazy",
+      "name": "Lat",
+      "penalties": {
+        "wood": -1,
+        "build": -1,
+        "hunt": -1
+      },
+      "description": "Tappar effektivitet snabbare."
+    },
+    "fearful": {
+      "id": "fearful",
+      "name": "Rädd av sig",
+      "penalties": {
+        "guard": -1,
+        "explore": -1,
+        "hunt": -1
+      },
+      "description": "Större panikrisk.",
+      "passiveEffect": {
+        "conflictRisk": 0.05
+      }
+    },
+    "fragile": {
+      "id": "fragile",
+      "name": "Skör",
+      "penalties": {
+        "wood": -1,
+        "guard": -1
+      },
+      "description": "Blir lättare skadad."
+    },
+    "careless": {
+      "id": "careless",
+      "name": "Slarvig",
+      "penalties": {
+        "food": -1,
+        "care": -1,
+        "craft": -1
+      },
+      "description": "Större risk för misslyckade uppgifter."
+    },
+    "stubborn": {
+      "id": "stubborn",
+      "name": "Tjurig",
+      "penalties": {},
+      "description": "Ökad risk för intern konflikt.",
+      "passiveEffect": {
+        "conflictRisk": 0.1
+      }
+    },
+    "selfish": {
+      "id": "selfish",
+      "name": "Självisk",
+      "penalties": {},
+      "description": "Negativ gruppmoralpåverkan.",
+      "passiveEffect": {
+        "groupMorale": -2
+      }
+    }
+  }
+}
+
