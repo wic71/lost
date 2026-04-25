@@ -3117,6 +3117,7 @@ function renderPlayerStatus() {
     btn.onclick = function() { setSurvivorJob(this.getAttribute('data-id'), this.getAttribute('data-job')); };
   });
   positionSurvivorHoverCards(container);
+  initMobileSurvivorCards(container);
 }
 
 function positionSurvivorHoverCards(container) {
@@ -3134,6 +3135,33 @@ function positionSurvivorHoverCards(container) {
       hoverCard.style.setProperty('--hover-top', top + 'px');
     });
   });
+}
+function initMobileSurvivorCards(container) {
+  if (!container) return;
+  Array.prototype.forEach.call(container.querySelectorAll('.survivor-card'), function(card) {
+    card.addEventListener('click', function(event) {
+      if (window.innerWidth > 900) return;
+      if (event.target.closest('.survivor-action-btn')) return;
+      var willOpen = !card.classList.contains('mobile-open');
+      Array.prototype.forEach.call(container.querySelectorAll('.survivor-card.mobile-open'), function(openCard) {
+        openCard.classList.remove('mobile-open');
+      });
+      if (willOpen) {
+        card.classList.add('mobile-open');
+        event.stopPropagation();
+      }
+    });
+  });
+  if (!container.dataset.mobileCardCloseBound) {
+    document.addEventListener('click', function(event) {
+      if (window.innerWidth > 900) return;
+      if (event.target.closest('#player-status .survivor-card')) return;
+      Array.prototype.forEach.call(container.querySelectorAll('.survivor-card.mobile-open'), function(openCard) {
+        openCard.classList.remove('mobile-open');
+      });
+    });
+    container.dataset.mobileCardCloseBound = 'true';
+  }
 }
 
 function renderDiscoveries() {
@@ -3404,6 +3432,15 @@ function renderLogs() {
 function render() { renderTabs(); renderTopBar(); renderFire(); renderResources(); renderActions(); renderVillage(); renderPlayerStatus(); renderDiscoveries(); renderExpedition(); renderRaftView(); renderSailingView(); renderLogs(); checkExplorationCouncilActivation(); checkRaftCouncilActivation(); checkDepartureCouncilActivation(); }
 
 function clearTimer() { if (tickInterval) { clearInterval(tickInterval); tickInterval = null; } }
+function togglePanel(panelId, button) {
+  var panel = document.getElementById(panelId);
+  if (!panel) return;
+  var collapsed = panel.classList.toggle('is-collapsed');
+  if (button) {
+    button.textContent = collapsed ? 'Visa' : 'Dölj';
+    button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  }
+}
 function setSpeed(speed) {
   currentSpeed = speed;
   Array.prototype.forEach.call(document.querySelectorAll('.speed-btn'), function(btn){ btn.classList.toggle('active', parseInt(btn.dataset.speed, 10) === speed); });
@@ -3425,6 +3462,11 @@ async function init() {
   document.getElementById('council-close').addEventListener('click', hideExplorationCouncilCard);
   document.getElementById('council-overlay').addEventListener('click', function(event) {
     if (event.target === this) hideExplorationCouncilCard();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-toggle-panel]'), function(btn) {
+    btn.addEventListener('click', function() {
+      togglePanel(btn.getAttribute('data-toggle-panel'), btn);
+    });
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-view-tab]'), function(btn) {
     btn.addEventListener('click', function() {

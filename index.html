@@ -142,7 +142,12 @@
       transform:translateY(6px);
       transition:opacity 0.16s ease, transform 0.16s ease;
     }
-    .survivor-card:hover .survivor-hover-card { opacity:1; transform:translateY(0); }
+    .survivor-card:hover .survivor-hover-card,
+    .survivor-card.mobile-open .survivor-hover-card {
+      opacity:1;
+      transform:translateY(0);
+      pointer-events:auto;
+    }
     .survivor-portrait {
       width:100%;
       aspect-ratio:3/4;
@@ -349,9 +354,54 @@
       .camp-work-grid { grid-template-columns:1fr; }
       #actions-list { grid-template-columns:1fr; }
       .expedition-layout { grid-template-columns:1fr; }
-      .survivor-hover-card { left:12px; right:12px; top:72px; width:auto; max-height:calc(100vh - 96px); overflow:auto; }
+      .panel-collapsible.is-collapsed,
+      .camp-column.panel-collapsible.is-collapsed { min-height:auto; }
+      .camp-column.panel-collapsible.is-collapsed .panel-header-row { margin-bottom:0; }
+      .survivor-hover-card {
+        left:12px;
+        right:12px;
+        top:12px;
+        width:auto;
+        max-height:calc(100dvh - 24px);
+        overflow:auto;
+        z-index:120;
+      }
       .arrival-card { grid-template-columns:1fr; }
       .council-card .arrival-media img { min-height:220px; }
+    }
+    @media (max-width: 600px) {
+      .camp-column { min-height:auto; }
+      .survivor-chip-row {
+        gap:6px;
+      }
+      .survivor-chip {
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        white-space:nowrap;
+        padding:4px 10px;
+        font-size:11px;
+        line-height:1.1;
+      }
+      .survivor-action-row {
+        display:grid;
+        grid-template-columns:repeat(4, minmax(44px, 1fr));
+        gap:6px;
+        overflow:visible;
+        padding-bottom:0;
+        margin-right:0;
+        width:100%;
+      }
+      .survivor-action-btn {
+        width:100%;
+        height:44px;
+        min-width:0;
+        flex:none;
+        font-size:18px;
+      }
+      .survivor-card {
+        padding-bottom:8px !important;
+      }
     }
   </style>
 </head>
@@ -372,8 +422,12 @@
     </header>
 
     <main class="main-content">
-      <aside class="panel">
-        <h2 class="panel-header">Resurser</h2>
+      <aside class="panel panel-collapsible" id="resources-panel">
+        <div class="panel-header-row">
+          <h2 class="panel-header">Resurser</h2>
+          <button class="panel-toggle" type="button" data-toggle-panel="resources-panel" aria-expanded="true">Dölj</button>
+        </div>
+        <div class="panel-body">
         <div class="fire-indicator">
           <span>Eld:</span>
           <div class="fire-level" id="fire-pips">
@@ -383,6 +437,7 @@
           <span id="fire-status" class="text-muted">Slocknad</span>
         </div>
         <div class="resource-grid" id="resources"></div>
+        </div>
       </aside>
 
       <section class="panel">
@@ -394,13 +449,23 @@
         <div class="game-view" id="camp-view">
           <h2 class="panel-header">Lägrets arbete</h2>
           <div class="camp-work-grid">
-            <div class="camp-column">
-              <div class="camp-column-title">Tillverkning</div>
-              <div id="actions-list"></div>
+            <div class="camp-column panel-collapsible" id="crafting-panel">
+              <div class="panel-header-row">
+                <div class="camp-column-title" style="margin-bottom:0;">Tillverkning</div>
+                <button class="panel-toggle" type="button" data-toggle-panel="crafting-panel" aria-expanded="true">Dölj</button>
+              </div>
+              <div class="panel-body" style="margin-top:10px;">
+                <div id="actions-list"></div>
+              </div>
             </div>
-            <div class="camp-column">
-              <div class="camp-column-title">Vår by</div>
-              <div id="village-view"></div>
+            <div class="camp-column panel-collapsible" id="village-panel">
+              <div class="panel-header-row">
+                <div class="camp-column-title" style="margin-bottom:0;">Vår by</div>
+                <button class="panel-toggle" type="button" data-toggle-panel="village-panel" aria-expanded="true">Dölj</button>
+              </div>
+              <div class="panel-body" style="margin-top:10px;">
+                <div id="village-view"></div>
+              </div>
             </div>
           </div>
           <div class="job-section">
@@ -422,11 +487,16 @@
         </div>
       </section>
 
-      <aside class="panel">
-        <h2 class="panel-header">Logg</h2>
+      <aside class="panel panel-collapsible" id="events-panel">
+        <div class="panel-header-row">
+          <h2 class="panel-header">Logg</h2>
+          <button class="panel-toggle" type="button" data-toggle-panel="events-panel" aria-expanded="true">Dölj</button>
+        </div>
+        <div class="panel-body">
         <div class="event-log" id="event-log"></div>
         <h2 class="panel-header mt-md">Upptäckter</h2>
         <div id="discoveries-list"></div>
+        </div>
       </aside>
     </main>
 

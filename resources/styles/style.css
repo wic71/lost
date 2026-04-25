@@ -160,6 +160,13 @@ body {
   overflow-y: auto;
 }
 
+.panel-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
 .panel-header {
   font-size: 12px;
   font-weight: 600;
@@ -169,6 +176,27 @@ body {
   margin-bottom: var(--space-md);
   padding-bottom: var(--space-sm);
   border-bottom: 1px solid var(--border);
+}
+
+.panel-toggle {
+  display: none;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-panel-light);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.panel-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.panel-collapsible.is-collapsed .panel-body {
+  display: none;
 }
 
 /* Resources panel */
@@ -449,6 +477,7 @@ body {
   padding: var(--space-sm) var(--space-md);
   background: var(--bg-panel);
   border-top: 1px solid var(--border);
+  gap: var(--space-sm);
 }
 
 .speed-controls {
@@ -536,17 +565,71 @@ body {
 @media (max-width: 900px) {
   .main-content {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto auto auto;
+    overflow: visible;
   }
   
   .panel {
-    max-height: 200px;
+    max-height: none;
+    overflow: visible;
+  }
+
+  body {
+    overflow-y: auto;
+  }
+
+  #app {
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+
+  .controls {
+    position: sticky;
+    bottom: 0;
+    z-index: 30;
+    flex-wrap: wrap;
+    padding-bottom: calc(var(--space-sm) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .speed-controls,
+  .action-buttons {
+    flex-wrap: wrap;
+  }
+
+  .speed-btn,
+  .btn {
+    min-height: 40px;
+  }
+
+  .panel-collapsible .panel-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 
 @media (max-width: 600px) {
+  html, body {
+    height: auto;
+    min-height: 100%;
+  }
+
   .top-bar {
     flex-direction: column;
+    gap: var(--space-sm);
+    align-items: stretch;
+    padding: var(--space-sm);
+  }
+
+  .top-bar-left,
+  .top-bar-right {
+    flex-wrap: wrap;
     gap: var(--space-sm);
   }
 
@@ -558,6 +641,36 @@ body {
   
   .status-item {
     font-size: 11px;
+  }
+
+  .main-content {
+    gap: var(--space-sm);
+    background: transparent;
+    padding: 0 0 8px;
+  }
+
+  .panel {
+    padding: 12px;
+  }
+
+  .controls {
+    justify-content: center;
+  }
+
+  .speed-controls,
+  .action-buttons {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .speed-btn {
+    flex: 1 1 54px;
+    padding: 10px 8px;
+  }
+
+  .btn {
+    flex: 1 1 56px;
+    padding: 10px 8px;
   }
 }
 
