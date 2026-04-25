@@ -221,7 +221,7 @@ function buildPassiveEffects(parts) {
   return passive;
 }
 function getPortraitUrl(name) {
-  return 'resources/survivors/' + encodeURIComponent(name) + '.png';
+  return 'resources/survivors/' + encodeURIComponent(name.toLowerCase()) + '.png';
 }
 function getBackgroundDef(backgroundId) {
   return ((getPeopleConfig().backgrounds || {})[backgroundId]) || null;
