@@ -5,6 +5,7 @@ import { getLanguage, getLanguageLabel, getSupportedLanguages, onLanguageChange,
 var gameState = {};
 var currentSpeed = 1;
 var tickInterval = null;
+var tickGeneration = 0;
 var currentView = 'camp';
 var councilOverlayCloseHandler = null;
 
@@ -68,6 +69,289 @@ function getRequirementText(kind, params) {
     return params && params[key] !== undefined ? params[key] : '{' + key + '}';
   });
 }
+function fillTemplate(template, params) {
+  return String(template || '').replace(/\{([^}]+)\}/g, function(_, key) {
+    return params && params[key] !== undefined ? params[key] : '{' + key + '}';
+  });
+}
+function getExpeditionLabel(key, params) {
+  var labels = {
+    en: {
+      locked: 'Expeditions unlock after the council.',
+      startTitle: 'Start Expedition',
+      startRequirements: 'Requires 4 food, 4 water, glasses, a free spear, and a free backpack. Equipment is borrowed until the expedition returns.',
+      selectSurvivor: 'Select survivor',
+      sendOut: 'Send out',
+      currentTileAlt: 'Current tile',
+      findings: 'Findings: {items}',
+      noFindings: 'None',
+      sword: 'Sword',
+      shield: 'Shield',
+      escorting: 'Escorting: {name} (health {health})',
+      waitingSurvivor: 'Waiting survivor: {name} / health {health} / background {background}{suffix}',
+      leftBehindSuffix: ' / left behind with supplies',
+      position: 'Position {x},{y}{pending}',
+      nextTick: ' / Next tick: {command}',
+      retreat: 'Return to camp: {ticks} ticks, no finds on the way.',
+      autoWalk: 'Auto-walk: {steps} steps left',
+      safeReturn: 'Safe return march: {ticks} ticks left',
+      resting: 'Resting at a fire: {hours} h left',
+      cockpitFound: 'Cockpit found. Return to camp.',
+      north: 'North',
+      west: 'West',
+      south: 'South',
+      east: 'East',
+      restAtFire: 'Rest at fire',
+      return: 'Return',
+      investigateTemple: 'Investigate temple',
+      careSurvivor: 'Treat survivor',
+      escortToCamp: 'Escort to camp',
+      waitingBadge: 'Waiting survivor',
+      health: 'Health',
+      energy: 'Energy'
+    },
+    se: {
+      locked: 'Expeditioner låses upp efter rådet.',
+      startTitle: 'Starta expedition',
+      startRequirements: 'Kräver 4 mat, 4 vatten, glasögon, ett ledigt spjut och en ledig ryggsäck. Utrustningen lånas tills expeditionen återvänder.',
+      selectSurvivor: 'Välj överlevare',
+      sendOut: 'Skicka ut',
+      currentTileAlt: 'Nuvarande ruta',
+      findings: 'Fynd: {items}',
+      noFindings: 'Inga',
+      sword: 'Svärd',
+      shield: 'Sköld',
+      escorting: 'Eskorterar: {name} (hälsa {health})',
+      waitingSurvivor: 'Väntande överlevare: {name} / hälsa {health} / bakgrund {background}{suffix}',
+      leftBehindSuffix: ' / lämnad kvar med proviant',
+      position: 'Position {x},{y}{pending}',
+      nextTick: ' / Nästa tick: {command}',
+      retreat: 'Återvänd till lägret: {ticks} ticks, inga fynd på vägen.',
+      autoWalk: 'Autogång: {steps} steg kvar',
+      safeReturn: 'Säker återmarsch: {ticks} ticks kvar',
+      resting: 'Vilar vid eld: {hours} h kvar',
+      cockpitFound: 'Cockpiten hittad. Återvänd till lägret.',
+      north: 'Norr',
+      west: 'Väst',
+      south: 'Söder',
+      east: 'Öst',
+      restAtFire: 'Vila vid eld',
+      return: 'Återvänd',
+      investigateTemple: 'Undersök templet',
+      careSurvivor: 'Vårda överlevare',
+      escortToCamp: 'Eskortera till lägret',
+      waitingBadge: 'Väntande överlevare',
+      health: 'Hälsa',
+      energy: 'Energi'
+    }
+  };
+  var language = getLanguage();
+  return fillTemplate(((labels[language] || labels.en)[key]) || key, params);
+}
+function getOverlayLabel(key) {
+  var labels = {
+    en: {
+      expeditionReachedGoal: 'The Expedition Has Reached Its Goal',
+      autowalkDone: 'Auto-walk complete'
+    },
+    se: {
+      expeditionReachedGoal: 'Expeditionen har nått sitt mål',
+      autowalkDone: 'Autogång klar'
+    }
+  };
+  var language = getLanguage();
+  return ((labels[language] || labels.en)[key]) || key;
+}
+function getExpeditionLogLabel(key, params) {
+  var labels = {
+    en: {
+      autoWalkStart: '{name} starts walking toward a known place. {steps} steps left.',
+      autoWalkArrived: '{name} reaches the selected place.',
+      movementPlanned: 'Movement planned: {command}.',
+      restPlanned: 'Rest planned for next tick.',
+      leaveCamp: '{name} leaves camp with food, water, spear, backpack, and glasses.',
+      restFinished: '{name} has finished resting by the fire and can continue.',
+      safeReturnFinished: '{name} returns from the expedition after a safe march through the jungle.',
+      immediateReturn: '{name} returns from the expedition.'
+    },
+    se: {
+      autoWalkStart: '{name} börjar gå mot en känd plats. {steps} steg kvar.',
+      autoWalkArrived: '{name} når fram till den valda platsen.',
+      movementPlanned: 'Rörelse planerad: {command}.',
+      restPlanned: 'Vila planerad till nästa tick.',
+      leaveCamp: '{name} lämnar lägret med mat, vatten, spjut, ryggsäck och glasögon.',
+      restFinished: '{name} har vilat klart vid elden och kan fortsätta.',
+      safeReturnFinished: '{name} återvänder från expeditionen efter säker återmarsch genom djungeln.',
+      immediateReturn: '{name} återvänder från expeditionen.'
+    }
+  };
+  var language = getLanguage();
+  return fillTemplate(((labels[language] || labels.en)[key]) || key, params);
+}
+function getStoryLabel(key, params) {
+  var labels = {
+    en: {
+      arrivedEyebrow: 'Arrived',
+      expeditionEyebrow: 'Expedition',
+      cockpitEyebrow: 'Cockpit Find',
+      expeditionReturnTitle: 'The Expedition Returns',
+      breakthroughTitle: 'Breakthrough',
+      campReceivesExpedition: 'The camp receives the expedition',
+      survivorReturnsWithExpedition: 'A survivor comes back with the expedition',
+      articleEyebrow: 'Newspaper Article',
+      reachesHarborTitle: 'You Reach Harbor',
+      thirtyDaysAtSeaSubtitle: 'Thirty days at sea are over',
+      nextArticle: 'Next article',
+      aftermathEyebrow: 'Aftermath',
+      allRescuedTitle: 'Everyone Was Rescued',
+      aftermathSorrowTitle: 'Aftermath and Grief',
+      everyoneCameHome: 'The whole group came home',
+      close: 'Close',
+      deadInCampHeader: 'Died in camp or during the stay',
+      neverRescuedHeader: 'Never rescued from the island',
+      noLossesEndgame: 'No losses were recorded in the final outcome.',
+      lossSummaryDead: '{count} dead',
+      lossSummaryMissing: '{count} missing',
+      everyoneCameHomeShort: 'Everyone came home.'
+    },
+    se: {
+      arrivedEyebrow: 'Framme',
+      expeditionEyebrow: 'Expeditionen',
+      cockpitEyebrow: 'Cockpitfynd',
+      expeditionReturnTitle: 'Expeditionen återvänder',
+      breakthroughTitle: 'Genombrott',
+      campReceivesExpedition: 'Lägret tar emot expeditionen',
+      survivorReturnsWithExpedition: 'En överlevare följer med tillbaka',
+      articleEyebrow: 'Tidningsartikel',
+      reachesHarborTitle: 'Ni når hamn',
+      thirtyDaysAtSeaSubtitle: 'Tretti dagar till havs är över',
+      nextArticle: 'Nästa artikel',
+      aftermathEyebrow: 'Efterspel',
+      allRescuedTitle: 'Alla räddades',
+      aftermathSorrowTitle: 'Efterspel och sorg',
+      everyoneCameHome: 'Hela gruppen kom hem',
+      close: 'Stäng',
+      deadInCampHeader: 'Dog i lägret eller under vistelsen',
+      neverRescuedHeader: 'Aldrig räddade från ön',
+      noLossesEndgame: 'Ingen förlust registrerades i slutläget.',
+      lossSummaryDead: '{count} döda',
+      lossSummaryMissing: '{count} saknade',
+      everyoneCameHomeShort: 'Alla kom hem.'
+    }
+  };
+  var language = getLanguage();
+  return fillTemplate(((labels[language] || labels.en)[key]) || key, params);
+}
+function getRaftLabel(key, params) {
+  var labels = {
+    en: {
+      locked: 'The raft unlocks after the second council.',
+      title: 'Building Site on the Beach',
+      completion: 'Completion: {percent}%',
+      survivorsToCarry: 'Survivors to carry: {count}',
+      logs: 'Logs on raft: {current} / {required}',
+      sail: 'Sail: {current} m² / {required} m²',
+      rig: 'Rigging: {status}',
+      hut: 'Cabin: {status}',
+      complete: 'Complete',
+      missing: 'Missing',
+      supplies: 'Supplies: food {food} / {requiredFood}, water {water} / {requiredWater}, pots {pots} / {requiredPots}',
+      ready: 'The raft is basically ready to depart when you decide.',
+      waitMore: 'Wait for more survivors',
+      sailNow: 'Sail',
+      noLongerReady: 'More survivors or lost supplies mean you are no longer fully ready to depart.',
+      projectHeader: 'Raft Projects',
+      noProjects: 'No raft projects yet.',
+      noAssignedWorker: 'No assigned worker'
+    },
+    se: {
+      locked: 'Flotten låses upp efter det andra örådet.',
+      title: 'Flottens Byggplats',
+      completion: 'Färdigställande: {percent}%',
+      survivorsToCarry: 'Överlevare att ta med: {count}',
+      logs: 'Stockar på flotten: {current} / {required}',
+      sail: 'Segel: {current} m² / {required} m²',
+      rig: 'Rigg: {status}',
+      hut: 'Hytt: {status}',
+      complete: 'Klart',
+      missing: 'Saknas',
+      supplies: 'Proviant: mat {food} / {requiredFood}, vatten {water} / {requiredWater}, krukor {pots} / {requiredPots}',
+      ready: 'Flotten är i stort sett redo att avsegla när du bestämmer dig.',
+      waitMore: 'Vänta på fler överlevare',
+      sailNow: 'Segla',
+      noLongerReady: 'Fler överlevare eller förlorad proviant betyder att ni inte längre är helt redo att avsegla.',
+      projectHeader: 'Flotprojekt',
+      noProjects: 'Inga flotprojekt ännu.',
+      noAssignedWorker: 'Ingen tilldelad arbetare'
+    }
+  };
+  var language = getLanguage();
+  return fillTemplate(((labels[language] || labels.en)[key]) || key, params);
+}
+function getSailingLabel(key, params) {
+  var labels = {
+    en: {
+      locked: 'The voyage only begins when you choose to sail from the raft site.',
+      openSea: 'Open Sea',
+      daysAtSea: 'Days at sea: {elapsed} / {total}',
+      daysRemaining: 'Days remaining: {days}',
+      aboard: 'Aboard: {count} survivors',
+      foodAboard: 'Food aboard: {amount}',
+      waterAboard: 'Water aboard: {amount}',
+      foodLost: 'Food lost at sea: {amount}',
+      journey: 'The Journey',
+      journeyText1: 'Camp life is over. No more jobs, events, or expeditions happen now. Each tick is one day at sea.',
+      journeyText2: 'All that remains is to see whether your food and water last until you reach harbor.'
+    },
+    se: {
+      locked: 'Resan börjar först när du väljer att segla från flottens byggplats.',
+      openSea: 'Öppet hav',
+      daysAtSea: 'Dagar till havs: {elapsed} / {total}',
+      daysRemaining: 'Dagar kvar: {days}',
+      aboard: 'Ombord: {count} överlevare',
+      foodAboard: 'Mat ombord: {amount}',
+      waterAboard: 'Vatten ombord: {amount}',
+      foodLost: 'Mat förlorad till havs: {amount}',
+      journey: 'Resan',
+      journeyText1: 'Lägerlivet är över. Inga fler jobb, händelser eller expeditioner sker nu. Varje tick är en dag till havs.',
+      journeyText2: 'Nu återstår bara att se om mat och vatten räcker tills ni når hamn.'
+    }
+  };
+  var language = getLanguage();
+  return fillTemplate(((labels[language] || labels.en)[key]) || key, params);
+}
+function getFinalScoreLabel(key, params) {
+  var labels = {
+    en: {
+      title: 'Final Score',
+      rescued: 'Rescued: {rescued} / {total}',
+      difficulty: 'Difficulty: {difficulty} ({factor}x)',
+      totalTime: 'Total time: {days} days',
+      timeFactor: 'Time factor: {factor}x',
+      rule: 'Full time score up to 50 days. After that, the score drops by 2% per extra day, including hours.',
+      barelyEscaped: 'Barely Escaped',
+      legendary: 'Legendary',
+      heroic: 'Heroic',
+      survivor: 'Survivor',
+      scarred: 'Scarred'
+    },
+    se: {
+      title: 'Slutpoäng',
+      rescued: 'Räddade: {rescued} / {total}',
+      difficulty: 'Svårighet: {difficulty} ({factor}x)',
+      totalTime: 'Total tid: {days} dagar',
+      timeFactor: 'Tidsfaktor: {factor}x',
+      rule: 'Full tidspoäng upp till 50 dagar. Därefter minskar poängen med 2% per extra dag inklusive timmar.',
+      barelyEscaped: 'Med nöd och näppe',
+      legendary: 'Legendarisk',
+      heroic: 'Hjältedåd',
+      survivor: 'Överlevare',
+      scarred: 'Ärrad'
+    }
+  };
+  var language = getLanguage();
+  return fillTemplate(((labels[language] || labels.en)[key]) || key, params);
+}
 function getEventText(eventName, field, fallback) {
   var source = (((GAME_DATA.events || {})[eventName]) || {})[field];
   if (getLanguage() === 'se' && source !== undefined) return source;
@@ -81,6 +365,10 @@ function getLanguageOptionsMarkup() {
 }
 function getPlayerDisplayName() {
   return getLanguage() === 'se' ? 'Du' : 'You';
+}
+function getSurvivorDisplayName(survivor) {
+  if (!survivor) return '';
+  return survivor.isPlayer ? getPlayerDisplayName() : (survivor.name || '');
 }
 function syncPlayerDisplayName() {
   var player = getPlayerSurvivor();
@@ -746,11 +1034,11 @@ function getFinalScoreSummary() {
   var difficultyFactor = difficultyFactorMap[difficulty] || 1.2;
   var baseScore = 1000;
   var finalScore = Math.round(baseScore * rescuedRatio * difficultyFactor * timeFactor);
-  var rating = 'Barely Escaped';
-  if (finalScore >= 1350) rating = 'Legendary';
-  else if (finalScore >= 1050) rating = 'Heroic';
-  else if (finalScore >= 750) rating = 'Survivor';
-  else if (finalScore >= 450) rating = 'Scarred';
+  var ratingKey = 'barelyEscaped';
+  if (finalScore >= 1350) ratingKey = 'legendary';
+  else if (finalScore >= 1050) ratingKey = 'heroic';
+  else if (finalScore >= 750) ratingKey = 'survivor';
+  else if (finalScore >= 450) ratingKey = 'scarred';
   return {
     rescuedCount: rescuedCount,
     totalRoster: totalRoster,
@@ -761,29 +1049,29 @@ function getFinalScoreSummary() {
     difficultyFactor: difficultyFactor,
     difficultyLabel: getDifficultyConfig().label,
     finalScore: finalScore,
-    rating: rating
+    ratingKey: ratingKey
   };
 }
 function renderFinalScoreMarkup() {
   var score = getFinalScoreSummary();
   return '<div style="margin-top:16px;padding:14px;border:1px solid #4b4b4b;border-radius:12px;background:rgba(255,255,255,0.03);">'
-    + '<div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#f1c40f;">Slutpoäng</div>'
+    + '<div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#f1c40f;">' + getFinalScoreLabel('title') + '</div>'
     + '<div style="font-size:34px;font-weight:800;line-height:1;margin-top:6px;">' + score.finalScore + '</div>'
-    + '<div style="margin-top:6px;font-size:14px;color:#f0d98a;font-weight:700;">' + escapeHtml(score.rating) + '</div>'
+    + '<div style="margin-top:6px;font-size:14px;color:#f0d98a;font-weight:700;">' + escapeHtml(getFinalScoreLabel(score.ratingKey)) + '</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;font-size:13px;color:#d6d6d6;">'
-    + '<div>Räddade: <strong>' + score.rescuedCount + ' / ' + score.totalRoster + '</strong></div>'
-    + '<div>Svårighet: <strong>' + escapeHtml(score.difficultyLabel) + ' (' + formatNumber(score.difficultyFactor) + 'x)</strong></div>'
-    + '<div>Total tid: <strong>' + formatPreciseNumber(score.totalDays) + ' dagar</strong></div>'
-    + '<div>Tidsfaktor: <strong>' + formatNumber(score.timeFactor) + 'x</strong></div>'
+    + '<div>' + getFinalScoreLabel('rescued', { rescued: score.rescuedCount, total: score.totalRoster }) + '</div>'
+    + '<div>' + getFinalScoreLabel('difficulty', { difficulty: escapeHtml(score.difficultyLabel), factor: formatNumber(score.difficultyFactor) }) + '</div>'
+    + '<div>' + getFinalScoreLabel('totalTime', { days: formatPreciseNumber(score.totalDays) }) + '</div>'
+    + '<div>' + getFinalScoreLabel('timeFactor', { factor: formatNumber(score.timeFactor) }) + '</div>'
     + '</div>'
-    + '<div style="margin-top:10px;font-size:12px;color:#b8b8b8;">Full tidspoäng upp till 50 dagar. Därefter minskar poängen med 2% per extra dag inklusive timmar.</div>'
+    + '<div style="margin-top:10px;font-size:12px;color:#b8b8b8;">' + getFinalScoreLabel('rule') + '</div>'
     + '</div>';
 }
 function getLossSummaryText(deadCount, missingCount) {
   var parts = [];
-  if (deadCount > 0) parts.push(deadCount + ' döda');
-  if (missingCount > 0) parts.push(missingCount + ' saknade');
-  if (!parts.length) return 'Alla kom hem.';
+  if (deadCount > 0) parts.push(getStoryLabel('lossSummaryDead', { count: deadCount }));
+  if (missingCount > 0) parts.push(getStoryLabel('lossSummaryMissing', { count: missingCount }));
+  if (!parts.length) return getStoryLabel('everyoneCameHomeShort');
   return parts.join(', ');
 }
 function didEveryoneSurviveIsland() {
@@ -796,28 +1084,28 @@ function showVoyageArrivalArticles() {
   var alive = outcome.alive;
   var dead = outcome.dead;
   showStoryOverlay({
-    eyebrow: 'Tidningsartikel',
-    title: 'Ni når hamn',
-    subtitle: 'Tretti dagar till havs är över',
+    eyebrow: getStoryLabel('articleEyebrow'),
+    title: getStoryLabel('reachesHarborTitle'),
+    subtitle: getStoryLabel('thirtyDaysAtSeaSubtitle'),
     image: 'resources/raft/raft_sail.png',
     text: articles.arrival || 'Efter trettio dagar till havs når flotten äntligen hamn.',
     appendHtml: renderPortraitStrip(alive, 'Inga överlevande kunde visas.'),
-    buttonText: 'Nästa artikel',
+    buttonText: getStoryLabel('nextArticle'),
     onClose: function() {
       var everyone = didEveryoneSurviveIsland();
       showStoryOverlay({
-        eyebrow: 'Efterspel',
-        title: everyone ? 'Alla räddades' : 'Efterspel och sorg',
-        subtitle: everyone ? 'Hela gruppen kom hem' : getLossSummaryText(dead.length, outcome.neverRescuedNames.length),
+        eyebrow: getStoryLabel('aftermathEyebrow'),
+        title: everyone ? getStoryLabel('allRescuedTitle') : getStoryLabel('aftermathSorrowTitle'),
+        subtitle: everyone ? getStoryLabel('everyoneCameHome') : getLossSummaryText(dead.length, outcome.neverRescuedNames.length),
         mediaHtml: everyone
           ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"><img src="resources/raft/primeminister.png" alt="Statsministern"><img src="resources/raft/raft_sail.png" alt="Flotten"><img src="resources/ui/hut.png" alt="Hus i lägret"><img src="resources/map/djungle_wreckage.png" alt="Cockpit i djungeln"></div>'
           : '<img src="resources/raft/primeminister.png" alt="Statsministern">',
         text: everyone ? (articles.allSurvived || 'Alla trettiotre överlevande kom hem.') : (articles.deaths || 'Alla kom inte hem.'),
         appendHtml: renderFinalScoreMarkup() + (everyone ? '' :
-          ((dead.length ? '<div style="margin-top:14px;font-weight:700;color:#f0d98a;">Dog i lägret eller under vistelsen</div>' + renderPortraitStrip(dead, '') : '')
-          + (outcome.neverRescuedNames.length ? '<div style="margin-top:18px;font-weight:700;color:#f0d98a;">Aldrig räddade från ön</div>' + renderNamedPortraitStrip(outcome.neverRescuedNames, '') : '')
-          + (!dead.length && !outcome.neverRescuedNames.length ? '<div class="project-meta">Ingen förlust registrerades i slutläget.</div>' : ''))),
-        buttonText: 'Stäng'
+          ((dead.length ? '<div style="margin-top:14px;font-weight:700;color:#f0d98a;">' + getStoryLabel('deadInCampHeader') + '</div>' + renderPortraitStrip(dead, '') : '')
+          + (outcome.neverRescuedNames.length ? '<div style="margin-top:18px;font-weight:700;color:#f0d98a;">' + getStoryLabel('neverRescuedHeader') + '</div>' + renderNamedPortraitStrip(outcome.neverRescuedNames, '') : '')
+          + (!dead.length && !outcome.neverRescuedNames.length ? '<div class="project-meta">' + getStoryLabel('noLossesEndgame') + '</div>' : ''))),
+        buttonText: getStoryLabel('close')
       });
     }
   });
@@ -1102,14 +1390,15 @@ function buildVisitedExpeditionPath(expedition, targetX, targetY) {
 }
 function showExpeditionAutowalkCard(explorer) {
   var texts = GAME_DATA.expeditionTexts || {};
+  var explorerName = getSurvivorDisplayName(explorer) || 'Utforskaren';
   showStoryOverlay({
-    eyebrow: 'Framme',
-    title: t('messages.expeditionReachedGoal', null, 'The Expedition Has Reached Its Goal'),
-    subtitle: t('messages.autowalkDone', null, 'Auto-walk complete'),
+    eyebrow: getStoryLabel('arrivedEyebrow'),
+    title: getOverlayLabel('expeditionReachedGoal'),
+    subtitle: getOverlayLabel('autowalkDone'),
     portraitName: explorer ? explorer.name : null,
     text: texts.autowalk || '[explorer_name] når fram till den kända platsen efter en mödosam vandring genom djungeln.',
     replacements: {
-      explorer_name: explorer ? explorer.name : 'Utforskaren'
+      explorer_name: explorerName
     }
   });
 }
@@ -1140,6 +1429,7 @@ function applyExpeditionTravelFatigue(expedition, survivor, amount) {
 function startExpeditionAutoWalk(targetX, targetY) {
   var expedition = getExpedition();
   var survivor = getExpeditionSurvivor();
+  var survivorName = getSurvivorDisplayName(survivor);
   if (!expedition.active || !survivor || (expedition.returnTicksRemaining || 0) > 0) return false;
   if (!isVisitedExpeditionTile(expedition, targetX, targetY)) return false;
   var path = buildVisitedExpeditionPath(expedition, targetX, targetY);
@@ -1147,7 +1437,7 @@ function startExpeditionAutoWalk(targetX, targetY) {
   expedition.pendingCommand = null;
   expedition.returnPath = [];
   expedition.autoWalkPath = path;
-  addExpeditionLog(survivor.name + ' börjar gå mot en känd plats. ' + path.length + ' steg kvar.');
+  addExpeditionLog(getExpeditionLogLabel('autoWalkStart', { name: survivorName, steps: path.length }));
   render();
   return true;
 }
@@ -1235,6 +1525,7 @@ function bringEscortedSurvivorToCamp(expedition) {
 }
 function showExpeditionReturnCard(explorer, rescued, foundMapThisRun) {
   var texts = GAME_DATA.expeditionTexts || {};
+  var explorerName = getSurvivorDisplayName(explorer) || 'Utforskaren';
   var withSurvivor = !!rescued;
   var withMap = !!foundMapThisRun;
   var key = withSurvivor ? (withMap ? 'survivorMap' : 'survivor') : (withMap ? 'map' : 'normal');
@@ -1245,14 +1536,14 @@ function showExpeditionReturnCard(explorer, rescued, foundMapThisRun) {
     map: '[explorer_name] återvänder med karta och kompass från cockpit. Gruppen samlas direkt för att förstå vad fyndet betyder.'
   };
   showStoryOverlay({
-    eyebrow: withMap ? 'Cockpitfynd' : 'Expeditionen',
-    title: withMap ? 'Genombrott' : 'Expeditionen Återvänder',
-    subtitle: withSurvivor ? 'En överlevare följer med tillbaka' : 'Lägret tar emot expeditionen',
+    eyebrow: withMap ? getStoryLabel('cockpitEyebrow') : getStoryLabel('expeditionEyebrow'),
+    title: withMap ? getStoryLabel('breakthroughTitle') : getStoryLabel('expeditionReturnTitle'),
+    subtitle: withSurvivor ? getStoryLabel('survivorReturnsWithExpedition') : getStoryLabel('campReceivesExpedition'),
     image: withMap ? 'resources/ui/map_success.png' : 'resources/ui/council.png',
     portraitName: (!withSurvivor && !withMap && explorer) ? explorer.name : null,
     text: texts[key] || fallbackText[key],
     replacements: {
-      explorer_name: explorer ? explorer.name : 'Utforskaren',
+      explorer_name: explorerName,
       survivor_name: rescued ? rescued.name : 'den räddade överlevaren'
     }
   });
@@ -1293,6 +1584,7 @@ function getExpeditionRequirementStatus() {
 }
 function startExpedition(survivorId) {
   var survivor = getAliveSurvivors().find(function(s) { return s.id === survivorId; });
+  var survivorName = getSurvivorDisplayName(survivor);
   var expedition = getExpedition();
   var cfg = getExpeditionConfig();
   var status = getExpeditionRequirementStatus();
@@ -1324,8 +1616,8 @@ function startExpedition(survivorId) {
   expedition.runFoundCockpit = false;
   survivor.assignedJob = 'expedition';
   survivor.state = 'expedition';
-  addLog(survivor.name + ' ger sig in i djungeln.', 'info');
-  addExpeditionLog(t('messages.expeditionLeaveCamp', { name: survivor.name }, survivor.name + ' leaves camp with food, water, spear, backpack, and glasses.'));
+  addLog(survivorName + ' ger sig in i djungeln.', 'info');
+  addExpeditionLog(getExpeditionLogLabel('leaveCamp', { name: survivorName }));
   return true;
 }
 function finishExpedition(reason) {
@@ -1371,7 +1663,7 @@ function queueExpeditionCommand(command) {
   if ((expedition.returnTicksRemaining || 0) > 0) return;
   expedition.autoWalkPath = [];
   expedition.pendingCommand = command;
-  addExpeditionLog(command === 'rest' ? 'Vila planerad till nästa tick.' : 'Rörelse planerad: ' + command + '.');
+  addExpeditionLog(command === 'rest' ? getExpeditionLogLabel('restPlanned') : getExpeditionLogLabel('movementPlanned', { command: command }));
   render();
 }
 function revealNearestUnknownInDirection(expedition, dx, dy) {
@@ -1521,6 +1813,7 @@ function processExpeditionTick() {
   var expedition = getExpedition();
   if (!expedition.active) return;
   var survivor = getExpeditionSurvivor();
+  var survivorName = getSurvivorDisplayName(survivor);
   if (!survivor || !survivor.alive) {
     expedition.active = false;
     addExpeditionLog(t('messages.expeditionCancelled', null, 'The expedition is cancelled.'));
@@ -1537,7 +1830,7 @@ function processExpeditionTick() {
     survivor.fatigue = clamp((survivor.fatigue || 0) - perTick(CONFIG.rates.restFatigueRecoveryPerHourByFireLevel[2] || 18), 0, 100);
     if (expedition.escorting) expedition.escorting.fatigue = clamp((expedition.escorting.fatigue || 0) - perTick(CONFIG.rates.restFatigueRecoveryPerHourByFireLevel[2] || 18), 0, 100);
     survivor.morale = clamp((survivor.morale || 0) + perTick(CONFIG.rates.restMoralePerHourByFireLevel[2] || 0), 0, 100);
-    if (expedition.restTicksRemaining <= 0) addExpeditionLog(survivor.name + ' har vilat klart vid elden och kan fortsätta.');
+    if (expedition.restTicksRemaining <= 0) addExpeditionLog(getExpeditionLogLabel('restFinished', { name: survivorName }));
     return;
   }
   if ((expedition.returnTicksRemaining || 0) > 0) {
@@ -1555,7 +1848,7 @@ function processExpeditionTick() {
     }
     if (expedition.returnTicksRemaining <= 0) {
       expedition.position = { x: cfg.camp.x, y: cfg.camp.y };
-      finishExpedition(survivor.name + ' återvänder från expeditionen efter säker återmarsch genom djungeln.');
+      finishExpedition(getExpeditionLogLabel('safeReturnFinished', { name: survivorName }));
     }
     return;
   }
@@ -1570,7 +1863,7 @@ function processExpeditionTick() {
     expedition.position = { x: nextStep.x, y: nextStep.y };
     applyAutowalkTileResupply(expedition, survivor, getExpeditionTile(expedition, nextStep.x, nextStep.y));
     if ((expedition.autoWalkPath || []).length <= 0) {
-      addExpeditionLog(survivor.name + ' når fram till den valda platsen.');
+      addExpeditionLog(getExpeditionLogLabel('autoWalkArrived', { name: survivorName }));
       showExpeditionAutowalkCard(survivor);
     }
     return;
@@ -1583,9 +1876,9 @@ function processExpeditionTick() {
     expedition.returnPath = buildVisitedExpeditionPath(expedition, cfg.camp.x, cfg.camp.y) || [];
     expedition.returnTicksRemaining = expedition.returnPath.length || getExpeditionTravelTicksToCamp(expedition.position);
     if (expedition.returnTicksRemaining <= 0) {
-      finishExpedition(survivor.name + ' återvänder från expeditionen.');
+      finishExpedition(getExpeditionLogLabel('immediateReturn', { name: survivorName }));
     } else {
-      addExpeditionLog(t('messages.expeditionSafeMarch', { name: survivor.name, ticks: expedition.returnTicksRemaining }, survivor.name + ' begins a safe march back to camp. ' + expedition.returnTicksRemaining + ' ticks remain.'));
+      addExpeditionLog(t('messages.expeditionSafeMarch', { name: survivorName, ticks: expedition.returnTicksRemaining }, survivorName + ' begins a safe march back to camp. ' + expedition.returnTicksRemaining + ' ticks remain.'));
     }
     return;
   }
@@ -2201,6 +2494,7 @@ function addLog(text, level) {
 function saveGame() {
   localStorage.setItem('lost_save', JSON.stringify(gameState));
   addLog(t('ui.saveSuccess'), 'success');
+  renderNowAndSoon();
 }
 
 function normalizeLoadedState() {
@@ -2244,7 +2538,6 @@ function normalizeLoadedState() {
   } else if (currentView === 'sail') {
     currentView = ((gameState.world || {}).raftUnlocked) ? 'raft' : 'camp';
   }
-  syncPlayerDisplayName();
   gameState.survivors.forEach(function(s, i){
     var peopleConfig = getPeopleConfig();
     s.isPlayer = !!s.isPlayer || i === 0;
@@ -2269,6 +2562,7 @@ function normalizeLoadedState() {
     s.activeProjectId = s.activeProjectId || null;
     s.resumeProjectId = s.resumeProjectId || null;
   });
+  syncPlayerDisplayName();
   gameState.camp.projects.forEach(function(project) {
     if (!project.id) project.id = 'project_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
     project.progressHours = project.progressHours || 0;
@@ -2282,11 +2576,11 @@ function loadGame() {
   if (!saved) return;
   gameState = JSON.parse(saved);
   normalizeLoadedState();
+  addLog(t('ui.loadSuccess'), 'success');
+  renderStaticShell();
   render();
-  requestAnimationFrame(function() {
-    addLog(t('ui.loadSuccess'), 'success');
-    render();
-  });
+  processTickFrame();
+  if (currentSpeed > 0) setSpeed(currentSpeed);
 }
 
 function createSurvivor(id, name, isPlayer, profile) {
@@ -2923,6 +3217,11 @@ function simulateTick() {
   updateCampMorale();
 }
 
+function processTickFrame() {
+  simulateTick();
+  render();
+}
+
 function executeDirectAction(actionId) {
   var player = gameState.survivors[0];
   if (!player || !player.alive) return;
@@ -3348,7 +3647,7 @@ function renderSailingView() {
   if (!container) return;
   var voyage = getVoyageState();
   if (!voyage.active && !voyage.completed) {
-    container.innerHTML = '<div class="project-meta">' + t('sailing.locked') + '</div>';
+    container.innerHTML = '<div class="project-meta">' + getSailingLabel('locked') + '</div>';
     return;
   }
   var totalDays = voyage.totalDays || 30;
@@ -3357,18 +3656,18 @@ function renderSailingView() {
   var percent = clamp((daysElapsed / Math.max(1, totalDays)) * 100, 0, 100);
   var html = '<div class="expedition-layout"><div class="expedition-card">';
   html += '<img class="expedition-hero" src="resources/raft/raft_sail.png" alt="' + t('shell.atSea') + '">';
-  html += '<div class="project-name">' + t('sailing.openSea') + '</div>';
-  html += '<div class="project-meta">' + t('sailing.daysAtSea', { elapsed: daysElapsed, total: totalDays }) + '</div>';
+  html += '<div class="project-name">' + getSailingLabel('openSea') + '</div>';
+  html += '<div class="project-meta">' + getSailingLabel('daysAtSea', { elapsed: daysElapsed, total: totalDays }) + '</div>';
   html += '<div class="project-progress"><div class="project-progress-fill" style="width:' + percent + '%"></div></div>';
-  html += '<div class="project-meta">' + t('sailing.daysRemaining', { days: daysRemaining }) + '</div>';
-  html += '<div class="project-meta">' + t('sailing.aboard', { count: voyage.passengerCount || getAliveSurvivors().length }) + '</div>';
-  html += '<div class="project-meta">' + t('sailing.foodAboard', { amount: formatNumber(gameState.resources.food || 0) }) + '</div>';
-  html += '<div class="project-meta">' + t('sailing.waterAboard', { amount: formatNumber(gameState.resources.water || 0) }) + '</div>';
-  html += '<div class="project-meta">' + t('sailing.foodLost', { amount: formatNumber(voyage.foodLostOverboard || 0) }) + '</div>';
+  html += '<div class="project-meta">' + getSailingLabel('daysRemaining', { days: daysRemaining }) + '</div>';
+  html += '<div class="project-meta">' + getSailingLabel('aboard', { count: voyage.passengerCount || getAliveSurvivors().length }) + '</div>';
+  html += '<div class="project-meta">' + getSailingLabel('foodAboard', { amount: formatNumber(gameState.resources.food || 0) }) + '</div>';
+  html += '<div class="project-meta">' + getSailingLabel('waterAboard', { amount: formatNumber(gameState.resources.water || 0) }) + '</div>';
+  html += '<div class="project-meta">' + getSailingLabel('foodLost', { amount: formatNumber(voyage.foodLostOverboard || 0) }) + '</div>';
   html += '</div><div class="expedition-card">';
-  html += '<div class="camp-column-title">' + t('sailing.journey') + '</div>';
-  html += '<div class="project-meta">' + t('sailing.journeyText1') + '</div>';
-  html += '<div class="project-meta" style="margin-top:10px;">' + t('sailing.journeyText2') + '</div>';
+  html += '<div class="camp-column-title">' + getSailingLabel('journey') + '</div>';
+  html += '<div class="project-meta">' + getSailingLabel('journeyText1') + '</div>';
+  html += '<div class="project-meta" style="margin-top:10px;">' + getSailingLabel('journeyText2') + '</div>';
   html += '</div></div>';
   container.innerHTML = html;
 }
@@ -3380,20 +3679,20 @@ function renderExpedition() {
   var survivor = getExpeditionSurvivor();
   var html = '';
   if (!isExpeditionUnlocked()) {
-    container.innerHTML = '<div class="project-meta">' + t('expedition.locked') + '</div>';
+    container.innerHTML = '<div class="project-meta">' + getExpeditionLabel('locked') + '</div>';
     return;
   }
   if (!expedition.active) {
-    html += '<div class="expedition-card"><div class="project-name">' + t('expedition.startTitle') + '</div>';
-    html += '<div class="project-meta">' + t('expedition.startRequirements') + '</div>';
+    html += '<div class="expedition-card"><div class="project-name">' + getExpeditionLabel('startTitle') + '</div>';
+    html += '<div class="project-meta">' + getExpeditionLabel('startRequirements') + '</div>';
     if (!status.ok) html += '<div class="project-meta" style="color:#f39c12;margin-top:8px;">' + status.missing.join(', ') + '</div>';
-    html += '<div class="project-actions"><select class="project-select" id="expedition-survivor-select"><option value="">' + t('expedition.selectSurvivor') + '</option>';
+    html += '<div class="project-actions"><select class="project-select" id="expedition-survivor-select"><option value="">' + getExpeditionLabel('selectSurvivor') + '</option>';
     getAliveSurvivors().filter(function(s) {
       return s.state !== 'rest' && s.state !== 'away' && !s.activeProjectId;
     }).forEach(function(s) {
       html += '<option value="' + s.id + '">' + s.name + '</option>';
     });
-    html += '</select><button class="project-btn" id="start-expedition-btn" ' + (!status.ok ? 'disabled' : '') + '>' + t('expedition.sendOut') + '</button></div></div>';
+    html += '</select><button class="project-btn" id="start-expedition-btn" ' + (!status.ok ? 'disabled' : '') + '>' + getExpeditionLabel('sendOut') + '</button></div></div>';
     container.innerHTML = html;
     var startBtn = document.getElementById('start-expedition-btn');
     if (startBtn) startBtn.onclick = function() {
@@ -3404,6 +3703,7 @@ function renderExpedition() {
   }
   var currentTile = getExpeditionTile(expedition, expedition.position.x, expedition.position.y);
   var image = getExpeditionTileImage(currentTile, true, { ignoreSurvivorMarker: true });
+  var survivorName = getSurvivorDisplayName(survivor);
   html += '<div class="expedition-layout"><div class="expedition-card">';
   html += '<div class="expedition-map" style="grid-template-columns:repeat(' + expedition.map.width + ', 1fr);">';
   for (var y = 0; y < expedition.map.height; y++) {
@@ -3417,41 +3717,41 @@ function renderExpedition() {
       var cls = 'map-tile' + (visited ? '' : ' unknown') + (x === expedition.position.x && y === expedition.position.y ? ' current' : '') + (clickableVisited ? ' clickable' : '') + ((onAutoPath || onReturnPath) ? ' route' : '');
       var bg = visited ? ' style="background-image:url(' + getExpeditionTileImage(tile, visited, { ignoreSurvivorMarker: x === expedition.position.x && y === expedition.position.y }) + ')"' : '';
       var badge = '';
-      if (visited && tile.strandedSurvivor && !tile.leftBehind) badge = '<span class="map-tile-badge" title="' + t('expedition.waitingBadge') + '">!</span>';
+      if (visited && tile.strandedSurvivor && !tile.leftBehind) badge = '<span class="map-tile-badge" title="' + getExpeditionLabel('waitingBadge') + '">!</span>';
       html += '<div class="' + cls + '"' + bg + (clickableVisited ? ' data-autowalk-x="' + x + '" data-autowalk-y="' + y + '"' : '') + '>' + badge + '</div>';
     }
   }
   html += '</div></div><div class="expedition-card">';
-  html += '<img class="expedition-hero" src="' + image + '" alt="' + t('expedition.currentTileAlt') + '">';
-  html += '<div class="project-name">' + (survivor ? survivor.name : t('shell.expedition')) + '</div>';
-  html += '<div class="project-meta">' + localizeNameMap('resources', 'food') + ' ' + formatPreciseNumber(expedition.supplies.food) + ' / ' + localizeNameMap('resources', 'water') + ' ' + formatPreciseNumber(expedition.supplies.water) + ' / ' + t('ui.health') + ' ' + (survivor ? formatNumber(survivor.health) : '-') + ' / ' + t('ui.energy') + ' ' + (survivor ? formatNumber(100 - survivor.fatigue) : '-') + '</div>';
-  html += '<div class="project-meta">' + t('expedition.findings', { items: ((expedition.gear || {}).sword ? t('expedition.sword') + ' ' : '') + ((expedition.gear || {}).shield ? t('expedition.shield') : '') + (!((expedition.gear || {}).sword || (expedition.gear || {}).shield) ? t('expedition.noFindings') : '') }) + '</div>';
-  if (expedition.escorting) html += '<div class="project-meta" style="color:#8ee08e;">' + t('expedition.escorting', { name: expedition.escorting.name, health: formatNumber(expedition.escorting.health) }) + '</div>';
+  html += '<img class="expedition-hero" src="' + image + '" alt="' + getExpeditionLabel('currentTileAlt') + '">';
+  html += '<div class="project-name">' + (survivor ? survivorName : t('shell.expedition')) + '</div>';
+  html += '<div class="project-meta">' + localizeNameMap('resources', 'food') + ' ' + formatPreciseNumber(expedition.supplies.food) + ' / ' + localizeNameMap('resources', 'water') + ' ' + formatPreciseNumber(expedition.supplies.water) + ' / ' + getExpeditionLabel('health') + ' ' + (survivor ? formatNumber(survivor.health) : '-') + ' / ' + getExpeditionLabel('energy') + ' ' + (survivor ? formatNumber(100 - survivor.fatigue) : '-') + '</div>';
+  html += '<div class="project-meta">' + getExpeditionLabel('findings', { items: ((expedition.gear || {}).sword ? getExpeditionLabel('sword') + ' ' : '') + ((expedition.gear || {}).shield ? getExpeditionLabel('shield') : '') + (!((expedition.gear || {}).sword || (expedition.gear || {}).shield) ? getExpeditionLabel('noFindings') : '') }) + '</div>';
+  if (expedition.escorting) html += '<div class="project-meta" style="color:#8ee08e;">' + getExpeditionLabel('escorting', { name: expedition.escorting.name, health: formatNumber(expedition.escorting.health) }) + '</div>';
   if (currentTile.strandedSurvivor) {
-    html += '<div class="project-meta" style="color:#f1c40f;">' + t('expedition.waitingSurvivor', { name: currentTile.strandedSurvivor.name, health: formatNumber(currentTile.strandedSurvivor.health), background: ((getBackgroundDef(currentTile.strandedSurvivor.background) || {}).name || t('common.unknown')), suffix: currentTile.strandedSurvivor.leftBehind ? t('expedition.leftBehindSuffix') : '' }) + '</div>';
+    html += '<div class="project-meta" style="color:#f1c40f;">' + getExpeditionLabel('waitingSurvivor', { name: currentTile.strandedSurvivor.name, health: formatNumber(currentTile.strandedSurvivor.health), background: ((getBackgroundDef(currentTile.strandedSurvivor.background) || {}).name || t('common.unknown')), suffix: currentTile.strandedSurvivor.leftBehind ? getExpeditionLabel('leftBehindSuffix') : '' }) + '</div>';
   }
-  html += '<div class="project-meta">' + t('expedition.position', { x: expedition.position.x, y: expedition.position.y, pending: expedition.pendingCommand ? t('expedition.nextTick', { command: expedition.pendingCommand }) : '' }) + '</div>';
-  html += '<div class="project-meta">' + t('expedition.retreat', { ticks: getExpeditionTravelTicksToCamp(expedition.position) }) + '</div>';
-  if ((expedition.autoWalkPath || []).length > 0) html += '<div class="project-meta" style="color:#8ee08e;">' + t('expedition.autoWalk', { steps: expedition.autoWalkPath.length }) + '</div>';
-  if ((expedition.returnTicksRemaining || 0) > 0) html += '<div class="project-meta" style="color:#8ee08e;">' + t('expedition.safeReturn', { ticks: expedition.returnTicksRemaining }) + '</div>';
-  if ((expedition.restTicksRemaining || 0) > 0) html += '<div class="project-meta" style="color:#f1c40f;">' + t('expedition.resting', { hours: formatNumber(expedition.restTicksRemaining * tickFactor()) }) + '</div>';
+  html += '<div class="project-meta">' + getExpeditionLabel('position', { x: expedition.position.x, y: expedition.position.y, pending: expedition.pendingCommand ? getExpeditionLabel('nextTick', { command: expedition.pendingCommand }) : '' }) + '</div>';
+  html += '<div class="project-meta">' + getExpeditionLabel('retreat', { ticks: getExpeditionTravelTicksToCamp(expedition.position) }) + '</div>';
+  if ((expedition.autoWalkPath || []).length > 0) html += '<div class="project-meta" style="color:#8ee08e;">' + getExpeditionLabel('autoWalk', { steps: expedition.autoWalkPath.length }) + '</div>';
+  if ((expedition.returnTicksRemaining || 0) > 0) html += '<div class="project-meta" style="color:#8ee08e;">' + getExpeditionLabel('safeReturn', { ticks: expedition.returnTicksRemaining }) + '</div>';
+  if ((expedition.restTicksRemaining || 0) > 0) html += '<div class="project-meta" style="color:#f1c40f;">' + getExpeditionLabel('resting', { hours: formatNumber(expedition.restTicksRemaining * tickFactor()) }) + '</div>';
   var movementDisabled = !survivor || (survivor.fatigue || 0) >= CONFIG.fatigueRestThreshold || (expedition.restTicksRemaining || 0) > 0 || (expedition.returnTicksRemaining || 0) > 0;
   var restDisabled = (expedition.restTicksRemaining || 0) > 0 || (expedition.returnTicksRemaining || 0) > 0;
   var disabledMove = movementDisabled ? ' disabled' : '';
   var disabledRest = restDisabled ? ' disabled' : '';
-  if (expedition.foundCockpit) html += '<div class="project-meta" style="color:#8ee08e;">' + t('expedition.cockpitFound') + '</div>';
+  if (expedition.foundCockpit) html += '<div class="project-meta" style="color:#8ee08e;">' + getExpeditionLabel('cockpitFound') + '</div>';
   html += '<div class="expedition-controls">';
-  html += '<button class="project-btn" data-expedition-command="north"' + disabledMove + '>' + t('expedition.north') + '</button>';
-  html += '<button class="project-btn" data-expedition-command="west"' + disabledMove + '>' + t('expedition.west') + '</button>';
-  html += '<button class="project-btn" data-expedition-command="south"' + disabledMove + '>' + t('expedition.south') + '</button>';
-  html += '<button class="project-btn" data-expedition-command="east"' + disabledMove + '>' + t('expedition.east') + '</button>';
+  html += '<button class="project-btn" data-expedition-command="north"' + disabledMove + '>' + getExpeditionLabel('north') + '</button>';
+  html += '<button class="project-btn" data-expedition-command="west"' + disabledMove + '>' + getExpeditionLabel('west') + '</button>';
+  html += '<button class="project-btn" data-expedition-command="south"' + disabledMove + '>' + getExpeditionLabel('south') + '</button>';
+  html += '<button class="project-btn" data-expedition-command="east"' + disabledMove + '>' + getExpeditionLabel('east') + '</button>';
   html += '</div><div class="project-actions">';
-  html += '<button class="project-btn" data-expedition-command="rest"' + disabledRest + '>' + t('expedition.restAtFire') + '</button>';
-  html += '<button class="project-btn" data-expedition-command="return">' + t('expedition.return') + '</button>';
-  if (currentTile.feature === 'temple') html += '<button class="project-btn" id="investigate-temple-btn"' + (currentTile.templeExplored ? ' disabled' : '') + '>' + t('expedition.investigateTemple') + '</button>';
+  html += '<button class="project-btn" data-expedition-command="rest"' + disabledRest + '>' + getExpeditionLabel('restAtFire') + '</button>';
+  html += '<button class="project-btn" data-expedition-command="return">' + getExpeditionLabel('return') + '</button>';
+  if (currentTile.feature === 'temple') html += '<button class="project-btn" id="investigate-temple-btn"' + (currentTile.templeExplored ? ' disabled' : '') + '>' + getExpeditionLabel('investigateTemple') + '</button>';
   if (currentTile.strandedSurvivor) {
-    html += '<button class="project-btn" id="care-rescue-btn"' + ((expedition.restTicksRemaining || 0) > 0 ? ' disabled' : '') + '>' + t('expedition.careSurvivor') + '</button>';
-    html += '<button class="project-btn" id="escort-rescue-btn"' + (((currentTile.strandedSurvivor.health || 0) < (getExpeditionConfig().escortMinHealth || 45) || expedition.escorting) ? ' disabled' : '') + '>' + t('expedition.escortToCamp') + '</button>';
+    html += '<button class="project-btn" id="care-rescue-btn"' + ((expedition.restTicksRemaining || 0) > 0 ? ' disabled' : '') + '>' + getExpeditionLabel('careSurvivor') + '</button>';
+    html += '<button class="project-btn" id="escort-rescue-btn"' + (((currentTile.strandedSurvivor.health || 0) < (getExpeditionConfig().escortMinHealth || 45) || expedition.escorting) ? ' disabled' : '') + '>' + getExpeditionLabel('escortToCamp') + '</button>';
   }
   html += '</div><div class="expedition-log">';
   (expedition.log || []).slice(0, 12).forEach(function(entry) {
@@ -3478,32 +3778,32 @@ function renderRaftView() {
   var container = document.getElementById('raft-root');
   if (!container) return;
   if (!((gameState.world || {}).raftUnlocked)) {
-    container.innerHTML = '<div class="project-meta">' + t('raft.locked') + '</div>';
+    container.innerHTML = '<div class="project-meta">' + getRaftLabel('locked') + '</div>';
     return;
   }
   var summary = getRaftSummary();
   var departureReady = !!((gameState.world || {}).departureReady);
   var html = '<div class="expedition-layout"><div class="expedition-card">';
-  html += '<img class="expedition-hero" src="' + (departureReady ? 'resources/raft/raft_departure.png' : 'resources/raft/raft_build.png') + '" alt="' + t('shell.raftSite') + '">';
-  html += '<div class="project-name">' + t('raft.title') + '</div>';
-  html += '<div class="project-meta">' + t('raft.completion', { percent: formatNumber(summary.percent) }) + '</div>';
+  html += '<img class="expedition-hero" src="' + (departureReady ? 'resources/raft/raft_departure.png' : 'resources/raft/raft_build.png') + '" alt="' + getRaftLabel('title') + '">';
+  html += '<div class="project-name">' + getRaftLabel('title') + '</div>';
+  html += '<div class="project-meta">' + getRaftLabel('completion', { percent: formatNumber(summary.percent) }) + '</div>';
   html += '<div class="project-progress"><div class="project-progress-fill" style="width:' + clamp(summary.percent, 0, 100) + '%"></div></div>';
-  html += '<div class="project-meta">' + t('raft.survivorsToCarry', { count: summary.aliveCount }) + '</div>';
-  html += '<div class="project-meta">' + t('raft.logs', { current: formatNumber(summary.currentLogs), required: formatNumber(summary.requiredLogs) }) + '</div>';
-  html += '<div class="project-meta">' + t('raft.sail', { current: formatNumber(summary.currentSail), required: formatNumber(summary.requiredSail) }) + '</div>';
-  html += '<div class="project-meta">' + t('raft.rig', { status: summary.currentRig >= 1 ? t('raft.complete') : t('raft.missing') }) + '</div>';
-  html += '<div class="project-meta">' + t('raft.hut', { status: summary.currentHut >= 1 ? t('raft.complete') : t('raft.missing') }) + '</div>';
-  html += '<div class="project-meta">' + t('raft.supplies', { food: formatNumber(summary.currentFood), requiredFood: formatNumber(summary.requiredFood), water: formatNumber(summary.currentWater), requiredWater: formatNumber(summary.requiredWater), pots: formatNumber(summary.currentPots), requiredPots: formatNumber(summary.requiredPots) }) + '</div>';
-  if (summary.ready) html += '<div class="project-meta" style="color:#8ee08e;">' + t('raft.ready') + '</div>';
+  html += '<div class="project-meta">' + getRaftLabel('survivorsToCarry', { count: summary.aliveCount }) + '</div>';
+  html += '<div class="project-meta">' + getRaftLabel('logs', { current: formatNumber(summary.currentLogs), required: formatNumber(summary.requiredLogs) }) + '</div>';
+  html += '<div class="project-meta">' + getRaftLabel('sail', { current: formatNumber(summary.currentSail), required: formatNumber(summary.requiredSail) }) + '</div>';
+  html += '<div class="project-meta">' + getRaftLabel('rig', { status: summary.currentRig >= 1 ? getRaftLabel('complete') : getRaftLabel('missing') }) + '</div>';
+  html += '<div class="project-meta">' + getRaftLabel('hut', { status: summary.currentHut >= 1 ? getRaftLabel('complete') : getRaftLabel('missing') }) + '</div>';
+  html += '<div class="project-meta">' + getRaftLabel('supplies', { food: formatNumber(summary.currentFood), requiredFood: formatNumber(summary.requiredFood), water: formatNumber(summary.currentWater), requiredWater: formatNumber(summary.requiredWater), pots: formatNumber(summary.currentPots), requiredPots: formatNumber(summary.requiredPots) }) + '</div>';
+  if (summary.ready) html += '<div class="project-meta" style="color:#8ee08e;">' + getRaftLabel('ready') + '</div>';
   if (departureReady) {
     html += '<div class="project-actions">';
-    html += '<button class="project-btn" id="raft-wait-btn">' + t('raft.waitMore') + '</button>';
-    html += '<button class="project-btn" id="raft-sail-btn"' + (!summary.ready ? ' disabled' : '') + '>' + t('raft.sailNow') + '</button>';
+    html += '<button class="project-btn" id="raft-wait-btn">' + getRaftLabel('waitMore') + '</button>';
+    html += '<button class="project-btn" id="raft-sail-btn"' + (!summary.ready ? ' disabled' : '') + '>' + getRaftLabel('sailNow') + '</button>';
     html += '</div>';
-    if (!summary.ready) html += '<div class="project-meta" style="margin-top:8px;color:#f39c12;">' + t('raft.noLongerReady') + '</div>';
+    if (!summary.ready) html += '<div class="project-meta" style="margin-top:8px;color:#f39c12;">' + getRaftLabel('noLongerReady') + '</div>';
   }
   html += '</div><div class="expedition-card">';
-  html += '<div class="camp-column-title">' + t('raft.projectHeader') + '</div>';
+  html += '<div class="camp-column-title">' + getRaftLabel('projectHeader') + '</div>';
   Object.keys(CONFIG.recipes).forEach(function(recipeId) {
     var recipe = CONFIG.recipes[recipeId];
     if ((recipe.workspace || 'camp') !== 'raft') return;
@@ -3517,13 +3817,13 @@ function renderRaftView() {
     html += '</div>';
   });
   var projects = getProjectsByWorkspace('raft');
-  if (!projects.length) html += '<div class="project-meta">' + t('raft.noProjects') + '</div>';
+  if (!projects.length) html += '<div class="project-meta">' + getRaftLabel('noProjects') + '</div>';
   projects.forEach(function(project) {
     var worker = getProjectWorker(project.id);
     var percent = projectProgressPercent(project);
     var remaining = Math.max(0, (project.requiredHours || 0) - (project.progressHours || 0));
     html += '<div class="project-card">';
-    html += '<div class="project-head"><div><div class="project-name">' + project.name + '</div><div class="project-meta">' + formatNumber(project.progressHours) + '/' + formatNumber(project.requiredHours) + ' h &bull; ' + (worker ? worker.name : t('statuses.noAssignedWorker')) + '</div></div><div class="project-meta">' + t('common.hoursRemaining', { value: formatNumber(remaining) }) + '</div></div>';
+    html += '<div class="project-head"><div><div class="project-name">' + project.name + '</div><div class="project-meta">' + formatNumber(project.progressHours) + '/' + formatNumber(project.requiredHours) + ' h &bull; ' + (worker ? worker.name : getRaftLabel('noAssignedWorker')) + '</div></div><div class="project-meta">' + t('common.hoursRemaining', { value: formatNumber(remaining) }) + '</div></div>';
     html += '<div class="project-progress"><div class="project-progress-fill" style="width:' + percent + '%"></div></div>';
     html += '<div class="project-actions"><select class="project-select" data-raft-project-worker="' + project.id + '"><option value="">' + t('common.workerSelect') + '</option>';
     getAvailableProjectWorkers().forEach(function(survivor) {
@@ -3590,6 +3890,24 @@ function renderLogs() {
 function render() { renderStaticShell(); renderTabs(); renderTopBar(); renderFire(); renderResources(); renderActions(); renderVillage(); renderPlayerStatus(); renderDiscoveries(); renderExpedition(); renderRaftView(); renderSailingView(); renderLogs(); checkExplorationCouncilActivation(); checkRaftCouncilActivation(); checkDepartureCouncilActivation(); }
 
 function clearTimer() { if (tickInterval) { clearInterval(tickInterval); tickInterval = null; } }
+function invalidateTickQueue() { tickGeneration += 1; clearTimer(); }
+function renderNowAndSoon() {
+  render();
+}
+function forceTickRefresh() {
+  simulateTick();
+  render();
+}
+function scheduleTickLoop(generation) {
+  if (currentSpeed <= 0) return;
+  tickInterval = setTimeout(function() {
+    if (generation !== tickGeneration || currentSpeed <= 0) return;
+    simulateTick();
+    if (generation !== tickGeneration || currentSpeed <= 0) return;
+    render();
+    scheduleTickLoop(generation);
+  }, CONFIG.speeds[currentSpeed]);
+}
 function togglePanel(panelId, button) {
   var panel = document.getElementById(panelId);
   if (!panel) return;
@@ -3603,7 +3921,7 @@ function setSpeed(speed) {
   currentSpeed = speed;
   Array.prototype.forEach.call(document.querySelectorAll('.speed-btn'), function(btn){ btn.classList.toggle('active', parseInt(btn.dataset.speed, 10) === speed); });
   clearTimer();
-  if (speed > 0) tickInterval = setInterval(function(){ simulateTick(); render(); }, CONFIG.speeds[speed]);
+  if (speed > 0) tickInterval = setInterval(processTickFrame, CONFIG.speeds[speed]);
 }
 
 async function init() {
@@ -3612,15 +3930,18 @@ async function init() {
   renderStaticShell();
   var languageSelect = document.getElementById('language-select');
   if (languageSelect) {
-    languageSelect.innerHTML = getLanguageOptionsMarkup();
-    languageSelect.value = getLanguage();
-    languageSelect.addEventListener('change', async function() {
-      setLanguage(languageSelect.value);
-      await loadGameData();
-      syncPlayerDisplayName();
-      render();
-    });
-  }
+      languageSelect.innerHTML = getLanguageOptionsMarkup();
+      languageSelect.value = getLanguage();
+      languageSelect.addEventListener('change', async function() {
+        setLanguage(languageSelect.value);
+        await loadGameData();
+        syncPlayerDisplayName();
+        renderStaticShell();
+        render();
+        processTickFrame();
+        if (currentSpeed > 0) setSpeed(currentSpeed);
+      });
+    }
   document.getElementById('tick-btn').addEventListener('click', function(){ setSpeed(currentSpeed === 0 ? 1 : 0); });
   document.getElementById('save-btn').addEventListener('click', saveGame);
   document.getElementById('load-btn').addEventListener('click', loadGame);
