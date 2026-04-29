@@ -1,12 +1,12 @@
 ﻿export const CONFIG = {
   tickMinutes: 30,
-  speeds: { 0: 0, 1: 30000, 2: 15000, 4: 7500, 6: 5000 },
+  speeds: { 0: 0, 1: 30000, 2: 15000, 4: 7500, 6: 5000, 10: 3000 },
   maxLogs: 60,
   fireMaxWood: 5,
   fatigueRestThreshold: 90,
   restDurationHours: 4,
   difficulties: {
-    easy: { label: 'Lätt', workMultiplier: 1.3, negativeEventMultiplier: 0.6, positiveEventMultiplier: 1.1 },
+    easy: { label: 'Lätt', workMultiplier: 1.3, negativeEventMultiplier: 0.7, positiveEventMultiplier: 1.1 },
     normal: { label: 'Normal', workMultiplier: 1.0, negativeEventMultiplier: 1.0, positiveEventMultiplier: 1.0 },
     hard: { label: 'Hård', workMultiplier: 0.8, negativeEventMultiplier: 1.4, positiveEventMultiplier: 0.9 }
   },
@@ -96,7 +96,7 @@
   },
   conflictBalance: {
     baseChancePerTick: 0.002,
-    chancePerRiskPoint: 0.00035,
+    chancePerRiskPoint: 0.00095,
     cooldownTicks: 6,
     moralePressureWeight: 0.45,
     personalLowMoraleWeight: 0.22,

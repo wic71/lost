@@ -406,13 +406,13 @@
       },
       "specialEffect": "Minskar disease pressure."
     },
-    "none": {
+	"none": {
       "id": "none",
-      "name": "Vanlig person",
-      "description": "Ingen tydlig yrkeserfarenhet som sticker ut.",
+      "name": "Ekonom",
+      "description": "Noggrann och tålmodig",
       "bonuses": {},
       "penalties": {},
-      "specialEffect": "Får extra traits i stället för tydlig yrkesprofil."
+      "specialEffect": "Liten bonus på arbeten som kräver noggranhet och organisation."
     }
   },
   "traits": {
