@@ -197,7 +197,7 @@ const translations = {
       projectStarted: 'Projekt startat: {project}.',
       projectAssigned: '{name} arbetar nu med: {project}.',
       projectFinished: '{name} färdigställer: {project}.',
-      intro1: 'Du vaknar på en strand. Huvudet dunkar.',
+      intro1: 'Välkommen till Lost.\n\nSpelet är tillägnat min käre lillebror Olle.\n\nDet finns ingen jag hellre skulle ha med mig på en öde ö.',
       intro2: 'Flygplanet. Det var flygplanet som störtade...',
       intro3: 'Skriken. Människor skrek, planet bröts sönder...',
       intro4: 'Passagerarna som föll ut, ner i havet. Kan jag vara den enda överlevaren?',
@@ -240,7 +240,7 @@ const translations = {
       landSighted: 'Land i sikte. Flotten når äntligen hamn.'
     },
     messages: {
-      intro1: 'Du vaknar på en strand. Huvudet dunkar.',
+      intro1: 'Välkommen till Lost.\n\nSpelet är tillägnat min käre lillebror Olle.\n\nDet finns ingen jag hellre skulle ha med mig på en öde ö.',
       intro2: 'Flygplanet. Det var flygplanet som störtade...',
       intro3: 'Skriken. Människor skrek, planet bröts sönder...',
       intro4: 'Passagerarna som föll ut, ner i havet. Kan jag vara den enda överlevaren?',
@@ -550,7 +550,7 @@ const translations = {
       }
     },
     messages: {
-      intro1: 'You wake up on a beach. Your head is pounding.',
+      intro1: 'Welcome to Lost.\nThis game is dedicated to my dear little brother, Olle.\nThere is no one I would rather have with me on a deserted island.',
       intro2: 'The airplane. It was the airplane that crashed...',
       intro3: 'The screams. People were screaming, the plane broke apart...',
       intro4: 'Passengers falling out into the sea. Could I be the only survivor?',
@@ -783,7 +783,7 @@ const translations = {
 };
 
 const seMessageOverrides = {
-  intro1: 'Du vaknar på en strand. Huvudet dunkar.',
+  intro1: 'Välkommen till Lost.\n\nSpelet är tillägnat min käre lillebror Olle.\n\nDet finns ingen jag hellre skulle ha med mig på en öde ö.',
   intro2: 'Flygplanet. Det var flygplanet som störtade...',
   intro3: 'Skriken. Människor skrek, planet bröts sönder...',
   intro4: 'Passagerarna som föll ut, ner i havet. Kan jag vara den enda överlevaren?',
