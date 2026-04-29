@@ -1,3 +1,5 @@
+import { getDefaultLanguage, getLanguage } from './i18n.js';
+
 export const GAME_DATA = {
   people: { newcomerNames: [] },
   discoveries: [],
@@ -29,6 +31,22 @@ async function fetchOptionalText(path) {
   }
 }
 
+async function fetchLocalizedMarkdown(baseName, optional) {
+  var language = getLanguage();
+  var defaultLanguage = getDefaultLanguage();
+  var candidates = [
+    '../text/' + baseName + '_' + language + '.md',
+    '../text/' + baseName + '_' + defaultLanguage + '.md',
+    '../text/' + baseName + '.md'
+  ];
+  for (var i = 0; i < candidates.length; i++) {
+    var content = await fetchOptionalText(candidates[i]);
+    if (content) return content;
+  }
+  if (optional) return '';
+  throw new Error('Could not read markdown document for ' + baseName + '.');
+}
+
 function normalizeGameData(data) {
   GAME_DATA.people = data.people || { newcomerNames: [] };
   if (!Array.isArray(GAME_DATA.people.newcomerNames)) GAME_DATA.people.newcomerNames = [];
@@ -44,17 +62,17 @@ export async function loadGameData() {
     fetchJson('../data/persons.json'),
     fetchJson('../data/discoveries.json'),
     fetchJson('../data/events.json'),
-    fetchText('../text/council_1.md'),
-    fetchOptionalText('../text/council_2.md'),
-    fetchOptionalText('../text/council_3.md'),
-    fetchOptionalText('../text/expedition_survivor.md'),
-    fetchOptionalText('../text/expedition_survivor_map.md'),
-    fetchOptionalText('../text/expedition_normal.md'),
-    fetchOptionalText('../text/expedition_map.md'),
-    fetchOptionalText('../text/expedition_autowalk.md'),
-    fetchOptionalText('../text/article_1.md'),
-    fetchOptionalText('../text/article_2a_death.md'),
-    fetchOptionalText('../text/article_2b_all_survived.md')
+    fetchLocalizedMarkdown('council_1', false),
+    fetchLocalizedMarkdown('council_2', true),
+    fetchLocalizedMarkdown('council_3', true),
+    fetchLocalizedMarkdown('expedition_survivor', true),
+    fetchLocalizedMarkdown('expedition_survivor_map', true),
+    fetchLocalizedMarkdown('expedition_normal', true),
+    fetchLocalizedMarkdown('expedition_map', true),
+    fetchLocalizedMarkdown('expedition_autowalk', true),
+    fetchLocalizedMarkdown('article_1', true),
+    fetchLocalizedMarkdown('article_2a_death', true),
+    fetchLocalizedMarkdown('article_2b_all_survived', true)
   ]);
 
   normalizeGameData({

@@ -1,0 +1,1 @@
+After a difficult journey through dense vegetation and harsh terrain, [explorer_name] has finally cut a path through to the destination marked on the map. A new route now lies open through the jungle, and [explorer_name] is ready to continue the expedition toward the next unknown location.

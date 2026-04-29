@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="sv">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,6 +23,15 @@
     .survivor-action-btn:hover { border-color:#888; background:#2b2b2b; }
     .survivor-action-btn.active { outline:2px solid #f1c40f; box-shadow:0 0 10px rgba(241,196,15,0.4); border-color:#f1c40f; }
     .survivor-action-btn:disabled { opacity:0.35; cursor:not-allowed; }
+    .top-bar-tools { display:flex; align-items:center; gap:8px; }
+    .lang-select {
+      border:1px solid #454545;
+      background:#181818;
+      color:#ddd;
+      border-radius:7px;
+      padding:4px 8px;
+      font-size:12px;
+    }
     .actions-list.compact { display:block; margin-bottom:8px; }
     .camp-work-grid { display:grid; grid-template-columns:minmax(420px, 1.65fr) minmax(240px, 0.75fr); gap:14px; align-items:start; margin-bottom:14px; }
     #actions-list { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
@@ -418,24 +427,28 @@
       <div class="top-bar-center" id="job-metrics"></div>
       <div class="top-bar-right">
         <div class="status-item"><span>&#128154;</span><span id="morale">- %</span></div>
-        <div class="status-item clickable" id="difficulty-toggle" title="Byt svårighetsgrad"><span>🎚️</span><span id="difficulty-label">Normal</span></div>
+        <div class="top-bar-tools">
+          <label class="status-item" for="language-select" id="language-label" title="Language">🌐</label>
+          <select class="lang-select" id="language-select" aria-labelledby="language-label"></select>
+          <div class="status-item clickable" id="difficulty-toggle" title="Change difficulty"><span>🎚️</span><span id="difficulty-label">Normal</span></div>
+        </div>
       </div>
     </header>
 
     <main class="main-content">
       <aside class="panel panel-collapsible" id="resources-panel">
         <div class="panel-header-row">
-          <h2 class="panel-header">Resurser</h2>
-          <button class="panel-toggle" type="button" data-toggle-panel="resources-panel" aria-expanded="true">Dölj</button>
+          <h2 class="panel-header" id="resources-heading">Resources</h2>
+          <button class="panel-toggle" type="button" data-toggle-panel="resources-panel" aria-expanded="true">Hide</button>
         </div>
         <div class="panel-body">
         <div class="fire-indicator">
-          <span>Eld:</span>
+          <span id="fire-label">Fire:</span>
           <div class="fire-level" id="fire-pips">
             <span class="fire-pip"></span><span class="fire-pip"></span>
             <span class="fire-pip"></span><span class="fire-pip"></span>
           </div>
-          <span id="fire-status" class="text-muted">Slocknad</span>
+          <span id="fire-status" class="text-muted">Out</span>
         </div>
         <div class="resource-grid" id="resources"></div>
         </div>
@@ -443,17 +456,17 @@
 
       <section class="panel">
         <div class="view-tabs">
-          <button class="view-tab active" data-view-tab="camp">Läger</button>
+          <button class="view-tab active" data-view-tab="camp">Camp</button>
           <button class="view-tab" data-view-tab="expedition">Expedition</button>
-          <button class="view-tab" data-view-tab="raft">Flotten</button>
+          <button class="view-tab" data-view-tab="raft">Raft</button>
         </div>
         <div class="game-view" id="camp-view">
-          <h2 class="panel-header">Lägrets arbete</h2>
+          <h2 class="panel-header" id="camp-work-heading">Camp Work</h2>
           <div class="camp-work-grid">
             <div class="camp-column panel-collapsible" id="crafting-panel">
               <div class="panel-header-row">
-                <div class="camp-column-title" style="margin-bottom:0;">Tillverkning</div>
-                <button class="panel-toggle" type="button" data-toggle-panel="crafting-panel" aria-expanded="true">Dölj</button>
+                <div class="camp-column-title" id="crafting-heading" style="margin-bottom:0;">Crafting</div>
+                <button class="panel-toggle" type="button" data-toggle-panel="crafting-panel" aria-expanded="true">Hide</button>
               </div>
               <div class="panel-body" style="margin-top:10px;">
                 <div id="actions-list"></div>
@@ -461,8 +474,8 @@
             </div>
             <div class="camp-column panel-collapsible" id="village-panel">
               <div class="panel-header-row">
-                <div class="camp-column-title" style="margin-bottom:0;">Vår by</div>
-                <button class="panel-toggle" type="button" data-toggle-panel="village-panel" aria-expanded="true">Dölj</button>
+                <div class="camp-column-title" id="village-heading" style="margin-bottom:0;">Our Village</div>
+                <button class="panel-toggle" type="button" data-toggle-panel="village-panel" aria-expanded="true">Hide</button>
               </div>
               <div class="panel-body" style="margin-top:10px;">
                 <div id="village-view"></div>
@@ -470,32 +483,32 @@
             </div>
           </div>
           <div class="job-section">
-            <h2 class="panel-header">Överlevare</h2>
+            <h2 class="panel-header" id="survivors-heading">Survivors</h2>
             <div id="player-status"></div>
           </div>
         </div>
         <div class="game-view hidden" id="expedition-view">
-          <h2 class="panel-header">Expedition</h2>
+          <h2 class="panel-header" id="expedition-heading">Expedition</h2>
           <div id="expedition-root"></div>
         </div>
         <div class="game-view hidden" id="raft-view">
-          <h2 class="panel-header">Flottens Byggplats</h2>
+          <h2 class="panel-header" id="raft-heading">Raft Construction Site</h2>
           <div id="raft-root"></div>
         </div>
         <div class="game-view hidden" id="sail-view">
-          <h2 class="panel-header">Till Havs</h2>
+          <h2 class="panel-header" id="sail-heading">At Sea</h2>
           <div id="sail-root"></div>
         </div>
       </section>
 
       <aside class="panel panel-collapsible" id="events-panel">
         <div class="panel-header-row">
-          <h2 class="panel-header">Logg</h2>
-          <button class="panel-toggle" type="button" data-toggle-panel="events-panel" aria-expanded="true">Dölj</button>
+          <h2 class="panel-header" id="log-heading">Log</h2>
+          <button class="panel-toggle" type="button" data-toggle-panel="events-panel" aria-expanded="true">Hide</button>
         </div>
         <div class="panel-body">
         <div class="event-log" id="event-log"></div>
-        <h2 class="panel-header mt-md">Upptäckter</h2>
+        <h2 class="panel-header mt-md" id="discoveries-heading">Discoveries</h2>
         <div id="discoveries-list"></div>
         </div>
       </aside>
@@ -511,9 +524,9 @@
 		<button class="speed-btn" data-speed="10">10×</button>
       </div>
       <div class="action-buttons">
-        <button class="btn btn-secondary" id="save-btn">💾</button>
-        <button class="btn btn-secondary" id="load-btn">📂</button>
-        <button class="btn btn-secondary" id="new-btn">🆕</button>
+        <button class="btn btn-secondary" id="save-btn" title="Save">💾</button>
+        <button class="btn btn-secondary" id="load-btn" title="Load">📂</button>
+        <button class="btn btn-secondary" id="new-btn" title="New game">🆕</button>
         <button class="btn btn-primary" id="tick-btn">⏯</button>
       </div>
     </footer>
@@ -522,13 +535,13 @@
     <div class="arrival-card">
       <div class="arrival-media" id="arrival-media"></div>
       <div class="arrival-content">
-        <div class="arrival-eyebrow">Ny Överlevare</div>
-        <div class="arrival-title" id="arrival-title">Okänd</div>
+        <div class="arrival-eyebrow" id="arrival-eyebrow">New Survivor</div>
+        <div class="arrival-title" id="arrival-title">Unknown</div>
         <div class="arrival-subtitle" id="arrival-subtitle"></div>
         <div class="arrival-text" id="arrival-text"></div>
         <div class="survivor-chip-row" id="arrival-traits"></div>
         <div class="skill-grid" id="arrival-skills"></div>
-        <button class="arrival-close" id="arrival-close">Fortsätt</button>
+        <button class="arrival-close" id="arrival-close">Continue</button>
       </div>
     </div>
   </div>
@@ -536,11 +549,11 @@
     <div class="arrival-card council-card">
       <div class="arrival-media" id="council-media"></div>
       <div class="arrival-content">
-        <div class="arrival-eyebrow" id="council-eyebrow">Fas 2</div>
-        <div class="arrival-title" id="council-title">Öråd</div>
+        <div class="arrival-eyebrow" id="council-eyebrow">Phase 2</div>
+        <div class="arrival-title" id="council-title">Council</div>
         <div class="arrival-subtitle" id="council-subtitle"></div>
         <div class="arrival-text" id="council-text"></div>
-        <button class="arrival-close" id="council-close">Fortsätt</button>
+        <button class="arrival-close" id="council-close">Continue</button>
       </div>
     </div>
   </div>

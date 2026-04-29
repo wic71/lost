@@ -1,11 +1,135 @@
 ﻿import { CONFIG } from './config.js';
 import { GAME_DATA, loadGameData } from './data-loader.js';
+import { getLanguage, getLanguageLabel, getSupportedLanguages, onLanguageChange, setLanguage, t, tArray } from './i18n.js';
 
 var gameState = {};
 var currentSpeed = 1;
 var tickInterval = null;
 var currentView = 'camp';
 var councilOverlayCloseHandler = null;
+
+function lowerFirst(text) { return text ? text.charAt(0).toLowerCase() + text.slice(1) : text; }
+function localizeNameMap(sectionKey, key, fallback) { return t(sectionKey + '.' + key, null, fallback || key); }
+function getJobName(jobId) { var job = CONFIG.jobs[jobId] || {}; return t('jobs.' + jobId, null, job.name || jobId); }
+function getRecipeName(recipeId) {
+  var recipe = CONFIG.recipes[recipeId] || {};
+  var names = {
+    en: {
+      stone_knife: 'Craft stone knife',
+      rope: 'Twist rope',
+      net: 'Make net',
+      spear: 'Craft spear',
+      axe: 'Craft axe',
+      pots: 'Fire pots',
+      hut: 'Build hut',
+      backpack: 'Craft backpack',
+      raft_log: 'Build raft: 1 log',
+      raft_sail: 'Weave sail: 1 m²',
+      raft_rig: 'Build rigging',
+      raft_hut: 'Build cabin'
+    },
+    se: {
+      stone_knife: 'Gör stenkniv',
+      rope: 'Tvinna rep',
+      net: 'Gör nät',
+      spear: 'Gör spjut',
+      axe: 'Gör yxa',
+      pots: 'Bränn krukor',
+      hut: 'Bygg hus',
+      backpack: 'Gör ryggsäck',
+      raft_log: 'Bygg flotte: 1 stock',
+      raft_sail: 'Väv segel: 1 m²',
+      raft_rig: 'Bygg rigg',
+      raft_hut: 'Bygg hytt'
+    }
+  };
+  var language = getLanguage();
+  return ((names[language] || names.en)[recipeId]) || recipe.name || recipeId;
+}
+function getDifficultyLabel(id) { return t('difficulty.' + id, null, ((CONFIG.difficulties || {})[id] || {}).label || id); }
+function getRequirementText(kind, params) {
+  var messages = {
+    en: {
+      discovery: 'Requires discovery: {id}',
+      missingResource: 'Missing {amount} {resource}',
+      requiresResource: 'Requires {resource}',
+      noFreeTool: 'No free {resource}'
+    },
+    se: {
+      discovery: 'Kräver upptäckt: {id}',
+      missingResource: 'Saknar {amount} {resource}',
+      requiresResource: 'Kräver {resource}',
+      noFreeTool: 'Inget ledigt {resource}'
+    }
+  };
+  var language = getLanguage();
+  var template = ((messages[language] || messages.en)[kind]) || kind;
+  return template.replace(/\{([^}]+)\}/g, function(_, key) {
+    return params && params[key] !== undefined ? params[key] : '{' + key + '}';
+  });
+}
+function getEventText(eventName, field, fallback) {
+  var source = (((GAME_DATA.events || {})[eventName]) || {})[field];
+  if (getLanguage() === 'se' && source !== undefined) return source;
+  return t('events.' + eventName + '.' + field, null, source || fallback);
+}
+function getLanguageOptionsMarkup() {
+  return getSupportedLanguages().map(function(languageCode) {
+    var selected = languageCode === getLanguage() ? ' selected' : '';
+    return '<option value="' + languageCode + '"' + selected + '>' + getLanguageLabel(languageCode) + '</option>';
+  }).join('');
+}
+function getPlayerDisplayName() {
+  return getLanguage() === 'se' ? 'Du' : 'You';
+}
+function syncPlayerDisplayName() {
+  var player = getPlayerSurvivor();
+  if (player) player.name = getPlayerDisplayName();
+}
+function getVillageMetricLabel(key) {
+  var labels = {
+    en: {
+      fireLevel: 'Fire Level',
+      shelteredPeople: 'Sheltered People',
+      stormFoodProtection: 'Storm Food Protection',
+      restHealthTotal: 'Rest Health Total',
+      restFatigueTotal: 'Rest Fatigue Total',
+      restMoraleTotal: 'Rest Morale Total',
+      fromFire: 'From Fire',
+      fromHuts: 'From Huts',
+      passiveCampMorale: 'Passive Camp Morale',
+      fromPeople: 'From People',
+      conflictRisk: 'Conflict Risk',
+      groupPressure: 'Event Pressure From Group Size',
+      conflictProtection: 'Conflict Protection',
+      personalityConflict: 'Personality Conflict',
+      nightRiskNoFire: 'Night Risk Without Fire',
+      active: 'Active',
+      none: 'None'
+    },
+    se: {
+      fireLevel: 'Eldnivå',
+      shelteredPeople: 'Skyddade personer',
+      stormFoodProtection: 'Stormskydd mat',
+      restHealthTotal: 'Vila hälsa totalt',
+      restFatigueTotal: 'Vila utmattning totalt',
+      restMoraleTotal: 'Vila moral totalt',
+      fromFire: 'Från eld',
+      fromHuts: 'Från hus',
+      passiveCampMorale: 'Passiv lägermoral',
+      fromPeople: 'Från personer',
+      conflictRisk: 'Konfliktrisk',
+      groupPressure: 'Händelsetryck från gruppstorlek',
+      conflictProtection: 'Skydd mot konflikt',
+      personalityConflict: 'Personlighet konflikt',
+      nightRiskNoFire: 'Nattrisk utan eld',
+      active: 'Aktiv',
+      none: 'Ingen'
+    }
+  };
+  var language = getLanguage();
+  return ((labels[language] || labels.en)[key]) || key;
+}
 
 function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
 function formatNumber(val) { return (Math.round((val || 0) * 10) / 10).toFixed(1); }
@@ -38,28 +162,7 @@ function isCapacityTool(key) {
   return ['stone_knives', 'axes', 'spears', 'nets', 'backpacks'].indexOf(key) >= 0;
 }
 function getResourceLabel(key) {
-  var labels = {
-    logs: 'ved',
-    food: 'mat',
-    water: 'vatten',
-    tinder: 'tändved',
-    clay: 'lera',
-    bamboo: 'bambu',
-    stone: 'sten',
-    fiber: 'fiber',
-    rope: 'rep',
-    leather: 'läder',
-    stone_knives: 'stenkniv',
-    axes: 'yxa',
-    timber: 'timmer',
-    spears: 'spjut',
-    nets: 'nät',
-    backpacks: 'ryggsäck',
-    huts: 'hus',
-    pots: 'krukor',
-    glasses: 'glasögon'
-  };
-  return labels[key] || key;
+  return lowerFirst(localizeNameMap('resources', key, key));
 }
 function getDeadSurvivors() {
   return (gameState.survivors || []).filter(function(s) { return !s.alive; });
@@ -147,29 +250,29 @@ function getEquipmentStockText(key) {
   if (!isCapacityTool(key)) return formatNumber(total);
   var used = getCapacityToolUse(key);
   var free = Math.max(0, total - used);
-  return formatNumber(free) + '/' + formatNumber(total) + ' ledig (' + formatNumber(used) + ' används)';
+  return formatNumber(free) + '/' + formatNumber(total) + ' ' + t('inventory.free') + ' (' + formatNumber(used) + ' ' + t('inventory.used') + ')';
 }
 function getRequirementStatus(requirements, options) {
   requirements = requirements || {};
   options = options || {};
   var missing = [];
   (requirements.discoveries || []).forEach(function(id) {
-    if (!hasDiscovery(id)) missing.push('Kräver upptäckt: ' + id);
+    if (!hasDiscovery(id)) missing.push(getRequirementText('discovery', { id: getDiscoveryDef(id) ? getDiscoveryDef(id).name : id }));
   });
   Object.keys(requirements.resources || {}).forEach(function(key) {
     var needed = requirements.resources[key] || 0;
-    if ((gameState.resources[key] || 0) < needed) missing.push('Saknar ' + formatNumber(needed - (gameState.resources[key] || 0)) + ' ' + getResourceLabel(key));
+    if ((gameState.resources[key] || 0) < needed) missing.push(getRequirementText('missingResource', { amount: formatNumber(needed - (gameState.resources[key] || 0)), resource: getResourceLabel(key) }));
   });
   Object.keys(requirements.tools || {}).forEach(function(key) {
     var needed = requirements.tools[key] || 0;
-    if ((gameState.resources[key] || 0) < needed) missing.push('Kräver ' + getResourceLabel(key));
+    if ((gameState.resources[key] || 0) < needed) missing.push(getRequirementText('requiresResource', { resource: getResourceLabel(key) }));
   });
   Object.keys(requirements.capacityTools || {}).forEach(function(key) {
     var needed = requirements.capacityTools[key] || 0;
     var available = gameState.resources[key] || 0;
     var used = getCapacityToolUse(key, options.survivorId);
     if ((available - used) < needed) {
-      missing.push(available >= needed ? 'Inget ledigt ' + getResourceLabel(key) : 'Kräver ' + getResourceLabel(key));
+      missing.push(available >= needed ? getRequirementText('noFreeTool', { resource: getResourceLabel(key) }) : getRequirementText('requiresResource', { resource: getResourceLabel(key) }));
     }
   });
   return { ok: missing.length === 0, missing: missing };
@@ -224,10 +327,23 @@ function getPortraitUrl(name) {
   return 'resources/survivors/' + encodeURIComponent(name.toLowerCase()) + '.png';
 }
 function getBackgroundDef(backgroundId) {
-  return ((getPeopleConfig().backgrounds || {})[backgroundId]) || null;
+  var base = ((getPeopleConfig().backgrounds || {})[backgroundId]) || null;
+  if (!base) return null;
+  if (getLanguage() === 'se') return base;
+  return Object.assign({}, base, {
+    name: t('backgrounds.' + backgroundId + '.name', null, base.name),
+    description: t('backgrounds.' + backgroundId + '.description', null, base.description),
+    specialEffect: t('backgrounds.' + backgroundId + '.specialEffect', null, base.specialEffect)
+  });
 }
 function getTraitDef(traitId) {
-  return ((getPeopleConfig().traits || {})[traitId]) || null;
+  var base = ((getPeopleConfig().traits || {})[traitId]) || null;
+  if (!base) return null;
+  if (getLanguage() === 'se') return base;
+  return Object.assign({}, base, {
+    name: t('traits.' + traitId + '.name', null, base.name),
+    description: t('traits.' + traitId + '.description', null, base.description)
+  });
 }
 function traitBadgeClass(trait) {
   return (trait && trait.penalties && Object.keys(trait.penalties).length) ? 'negative' : 'positive';
@@ -303,20 +419,7 @@ function getTotalJobPerformance(jobId) {
   }, 0);
 }
 function formatSkillLabel(skillKey) {
-  var labels = {
-    wood: 'Ved',
-    food: 'Mat',
-    water: 'Vatten',
-    care: 'Vård',
-    build: 'Bygga',
-    guard: 'Vakta',
-    explore: 'Utforska',
-    fish: 'Fiska',
-    hunt: 'Jaga',
-    timber: 'Timmer',
-    craft: 'Hantverk'
-  };
-  return labels[skillKey] || skillKey;
+  return localizeNameMap('skills', skillKey, skillKey);
 }
 function icon(name) {
   var icons = {
@@ -357,7 +460,7 @@ function icon(name) {
 function renderPortraitMarkup(name, className) {
   var portraitUrl = getPortraitUrl(name);
   var cls = className || 'survivor-portrait';
-  return '<img class="' + cls + '" src="' + portraitUrl + '" alt="' + name + '" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'' + cls + ' fallback\',textContent:\'Ingen bild\'}))">';
+  return '<img class="' + cls + '" src="' + portraitUrl + '" alt="' + name + '" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'' + cls + ' fallback\',textContent:\'' + t('meta.imageMissing') + '\'}))">';
 }
 function getRecommendedJobs(survivor) {
   var candidateJobs = ['wood', 'timber', 'food', 'water', 'fish', 'hunt', 'guard', 'care', 'craft', 'explore'];
@@ -438,8 +541,8 @@ function showArrivalCard(survivor) {
   var topSkills = getTopSkills(survivor, 6);
   document.getElementById('arrival-media').innerHTML = renderPortraitMarkup(survivor.name, 'survivor-portrait');
   document.getElementById('arrival-title').textContent = survivor.name;
-  document.getElementById('arrival-subtitle').textContent = background ? background.name : 'Ny överlevare';
-  document.getElementById('arrival-text').textContent = background && background.description ? background.description + ' ' + (background.specialEffect || '') : 'En ny överlevare har nått lägret.';
+  document.getElementById('arrival-subtitle').textContent = background ? background.name : t('ui.newSurvivor');
+  document.getElementById('arrival-text').textContent = background && background.description ? background.description + ' ' + (background.specialEffect || '') : t('ui.newSurvivorText');
   document.getElementById('arrival-traits').innerHTML = traits.map(function(trait) {
     return '<span class="survivor-chip">' + trait.name + '</span>';
   }).join('');
@@ -477,7 +580,7 @@ function formatCouncilText(rawText) {
   var text = rawText || '';
   var speakers = getCouncilSpeakerNames();
   for (var i = 0; i < 4; i++) {
-    var name = speakers[i] ? speakers[i].name : 'någon';
+    var name = speakers[i] ? speakers[i].name : t('common.unknown');
     text = text.replace(new RegExp('\\[person_' + (i + 1) + '\\]', 'g'), name);
   }
   return text.split(/\n\s*\n/).filter(function(paragraph) {
@@ -506,12 +609,12 @@ function showExplorationCouncilCard() {
   var overlay = document.getElementById('council-overlay');
   if (!overlay) return;
   var cfg = getExplorationCouncilConfig();
-  document.getElementById('council-eyebrow').textContent = 'Fas 2';
-  document.getElementById('council-media').innerHTML = '<img src="' + (cfg.image || 'resources/ui/council.png') + '" alt="Öråd" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'village-placeholder\',textContent:\'Öråd\'}))">';
-  document.getElementById('council-title').textContent = cfg.title || 'Öråd';
-  document.getElementById('council-subtitle').textContent = cfg.subtitle || 'Expeditioner kan planeras';
-  document.getElementById('council-text').innerHTML = formatCouncilText((GAME_DATA.council || {}).explorationText || cfg.text || 'Gruppen samlas och beslutar att börja utforska ön.');
-  document.getElementById('council-close').textContent = cfg.buttonText || 'Fortsätt';
+  document.getElementById('council-eyebrow').textContent = t('ui.phase2');
+  document.getElementById('council-media').innerHTML = '<img src="' + (cfg.image || 'resources/ui/council.png') + '" alt="' + t('shell.councilTitle') + '" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'village-placeholder\',textContent:\'' + t('shell.councilTitle') + '\'}))">';
+  document.getElementById('council-title').textContent = t('councils.exploration.title', null, cfg.title || t('shell.councilTitle'));
+  document.getElementById('council-subtitle').textContent = t('councils.exploration.subtitle', null, cfg.subtitle);
+  document.getElementById('council-text').innerHTML = formatCouncilText((GAME_DATA.council || {}).explorationText || t('councils.exploration.text', null, cfg.text));
+  document.getElementById('council-close').textContent = t('councils.exploration.button', null, cfg.buttonText || t('common.continue'));
   overlay.classList.add('visible');
 }
 function hideExplorationCouncilCard() {
@@ -525,24 +628,24 @@ function showRaftCouncilCard() {
   var overlay = document.getElementById('council-overlay');
   if (!overlay) return;
   var cfg = getRaftCouncilConfig();
-  document.getElementById('council-eyebrow').textContent = 'Fas 3';
-  document.getElementById('council-media').innerHTML = '<img src="' + (cfg.image || 'resources/ui/council.png') + '" alt="Öråd" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'village-placeholder\',textContent:\'Öråd\'}))">';
-  document.getElementById('council-title').textContent = cfg.title || 'Öråd';
-  document.getElementById('council-subtitle').textContent = cfg.subtitle || 'Flotten måste byggas';
-  document.getElementById('council-text').innerHTML = formatCouncilText((GAME_DATA.council || {}).raftText || cfg.text || 'Gruppen samlas och börjar planera en flotte.');
-  document.getElementById('council-close').textContent = cfg.buttonText || 'Öppna fas 3';
+  document.getElementById('council-eyebrow').textContent = t('ui.phase3');
+  document.getElementById('council-media').innerHTML = '<img src="' + (cfg.image || 'resources/ui/council.png') + '" alt="' + t('shell.councilTitle') + '" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'village-placeholder\',textContent:\'' + t('shell.councilTitle') + '\'}))">';
+  document.getElementById('council-title').textContent = t('councils.raft.title', null, cfg.title || t('shell.councilTitle'));
+  document.getElementById('council-subtitle').textContent = t('councils.raft.subtitle', null, cfg.subtitle);
+  document.getElementById('council-text').innerHTML = formatCouncilText((GAME_DATA.council || {}).raftText || t('councils.raft.text', null, cfg.text));
+  document.getElementById('council-close').textContent = t('councils.raft.button', null, cfg.buttonText || t('common.continue'));
   overlay.classList.add('visible');
 }
 function showDepartureCouncilCard() {
   var overlay = document.getElementById('council-overlay');
   if (!overlay) return;
   var cfg = getDepartureCouncilConfig();
-  document.getElementById('council-eyebrow').textContent = 'Avfärd';
-  document.getElementById('council-media').innerHTML = '<img src="' + (cfg.image || 'resources/ui/council.png') + '" alt="Öråd" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'village-placeholder\',textContent:\'Öråd\'}))">';
-  document.getElementById('council-title').textContent = cfg.title || 'Öråd';
-  document.getElementById('council-subtitle').textContent = cfg.subtitle || 'Det är dags att välja';
-  document.getElementById('council-text').innerHTML = formatCouncilText((GAME_DATA.council || {}).departureText || cfg.text || 'Flotten är färdig. Gruppen måste välja om ni seglar nu eller väntar.');
-  document.getElementById('council-close').textContent = cfg.buttonText || 'Till flottplatsen';
+  document.getElementById('council-eyebrow').textContent = t('ui.departure');
+  document.getElementById('council-media').innerHTML = '<img src="' + (cfg.image || 'resources/ui/council.png') + '" alt="' + t('shell.councilTitle') + '" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'village-placeholder\',textContent:\'' + t('shell.councilTitle') + '\'}))">';
+  document.getElementById('council-title').textContent = t('councils.departure.title', null, cfg.title || t('shell.councilTitle'));
+  document.getElementById('council-subtitle').textContent = t('councils.departure.subtitle', null, cfg.subtitle);
+  document.getElementById('council-text').innerHTML = formatCouncilText((GAME_DATA.council || {}).departureText || t('councils.departure.text', null, cfg.text));
+  document.getElementById('council-close').textContent = t('councils.departure.button', null, cfg.buttonText || t('common.continue'));
   overlay.classList.add('visible');
 }
 function showStoryOverlay(options) {
@@ -555,14 +658,14 @@ function showStoryOverlay(options) {
     imageHtml = renderPortraitMarkup(options.portraitName, 'survivor-portrait');
   } else {
     var image = options.image || 'resources/ui/council.png';
-    imageHtml = '<img src="' + image + '" alt="' + escapeHtml(options.title || 'Händelse') + '" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'village-placeholder\',textContent:\'Händelse\'}))">';
+    imageHtml = '<img src="' + image + '" alt="' + escapeHtml(options.title || t('ui.event')) + '" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'village-placeholder\',textContent:\'' + t('ui.event') + '\'}))">';
   }
-  document.getElementById('council-eyebrow').textContent = options.eyebrow || 'Hemkomst';
+  document.getElementById('council-eyebrow').textContent = options.eyebrow || t('ui.homecoming');
   document.getElementById('council-media').innerHTML = imageHtml;
-  document.getElementById('council-title').textContent = options.title || 'Händelse';
+  document.getElementById('council-title').textContent = options.title || t('ui.event');
   document.getElementById('council-subtitle').textContent = options.subtitle || '';
   document.getElementById('council-text').innerHTML = (options.bodyHtml || formatNamedStoryText(options.text || '', options.replacements || {})) + (options.appendHtml || '');
-  document.getElementById('council-close').textContent = options.buttonText || 'Fortsätt';
+  document.getElementById('council-close').textContent = options.buttonText || t('common.continue');
   councilOverlayCloseHandler = typeof options.onClose === 'function' ? options.onClose : null;
   overlay.classList.add('visible');
 }
@@ -726,7 +829,7 @@ function checkExplorationCouncilActivation() {
   if (!hasExplorationCouncilRequirements()) return;
   gameState.camp.council.explorationShown = true;
   gameState.world.phase = 'exploration';
-  addLog('Örådet samlas. Expeditioner är nu möjliga.', 'success');
+  addLog(t('messages.councilExploration'), 'success');
   showExplorationCouncilCard();
 }
 function checkRaftCouncilActivation() {
@@ -737,7 +840,7 @@ function checkRaftCouncilActivation() {
   gameState.camp.council.raftShown = true;
   gameState.world.raftUnlocked = true;
   gameState.world.phase = 'raft';
-  addLog('Örådet samlas igen. Nu börjar planeringen av flotten.', 'success');
+  addLog(t('messages.councilRaft'), 'success');
   showRaftCouncilCard();
 }
 function checkDepartureCouncilActivation() {
@@ -749,7 +852,7 @@ function checkDepartureCouncilActivation() {
   if (!summary.ready) return;
   gameState.camp.council.departureShown = true;
   gameState.world.departureReady = true;
-  addLog('Flotten är färdig. Gruppen samlas för det sista örådet före avfärd.', 'success');
+  addLog(t('messages.councilDeparture'), 'success');
   showDepartureCouncilCard();
 }
 function getExpeditionConfig() {
@@ -1001,8 +1104,8 @@ function showExpeditionAutowalkCard(explorer) {
   var texts = GAME_DATA.expeditionTexts || {};
   showStoryOverlay({
     eyebrow: 'Framme',
-    title: 'Expeditionen Har Nått Målet',
-    subtitle: 'Autogången är klar',
+    title: t('messages.expeditionReachedGoal', null, 'The Expedition Has Reached Its Goal'),
+    subtitle: t('messages.autowalkDone', null, 'Auto-walk complete'),
     portraitName: explorer ? explorer.name : null,
     text: texts.autowalk || '[explorer_name] når fram till den kända platsen efter en mödosam vandring genom djungeln.',
     replacements: {
@@ -1087,11 +1190,11 @@ function rescueStrandedSurvivor() {
   var cfg = getExpeditionConfig();
   if (!expedition.active || !survivor || !tile.strandedSurvivor) return;
   if (expedition.escorting) {
-    addExpeditionLog('Du eskorterar redan en överlevare tillbaka till lägret.');
+    addExpeditionLog(t('messages.expeditionAlreadyEscorting', null, 'You are already escorting a survivor back to camp.'));
     return;
   }
   if ((tile.strandedSurvivor.health || 0) < cfg.escortMinHealth) {
-    addExpeditionLog(tile.strandedSurvivor.name + ' är för svag för att följa med ännu. Vårda personen först.');
+    addExpeditionLog(t('messages.expeditionTooWeak', { name: tile.strandedSurvivor.name }, tile.strandedSurvivor.name + ' is too weak to travel yet. Treat them first.'));
     return;
   }
   expedition.escorting = Object.assign({}, tile.strandedSurvivor);
@@ -1102,11 +1205,11 @@ function rescueStrandedSurvivor() {
   expedition.returnPath = buildVisitedExpeditionPath(expedition, cfg.camp.x, cfg.camp.y) || [];
   expedition.returnTicksRemaining = expedition.returnPath.length || getExpeditionTravelTicksToCamp(expedition.position);
   if (expedition.returnTicksRemaining <= 0) {
-    addExpeditionLog(rescuedName + ' ansluter till expeditionen och ni är redan framme vid lägret.');
-    finishExpedition(survivor.name + ' återvänder till lägret tillsammans med ' + rescuedName + '.');
+    addExpeditionLog(t('messages.expeditionJoinedAtCamp', { name: rescuedName }, rescuedName + ' joins the expedition and you are already back at camp.'));
+    finishExpedition(t('messages.expeditionReturnWithSurvivor', { explorer: survivor.name, survivor: rescuedName }, survivor.name + ' returns to camp together with ' + rescuedName + '.'));
     return;
   }
-  addExpeditionLog(rescuedName + ' ansluter till expeditionen. Säker återmarsch mot lägret börjar nu. ' + expedition.returnTicksRemaining + ' tick kvar.');
+  addExpeditionLog(t('messages.expeditionJoinedReturn', { name: rescuedName, ticks: expedition.returnTicksRemaining }, rescuedName + ' joins the expedition. A safe march back to camp begins now. ' + expedition.returnTicksRemaining + ' ticks remain.'));
   render();
 }
 function careForStrandedSurvivor() {
@@ -1180,12 +1283,12 @@ function getExpeditionSurvivor() {
 function getExpeditionRequirementStatus() {
   var cfg = getExpeditionConfig();
   var missing = [];
-  if (!isExpeditionUnlocked()) missing.push('Örådet måste hållas först');
-  if (getResourceTotalFood() < cfg.foodCost) missing.push('Saknar ' + formatNumber(cfg.foodCost - getResourceTotalFood()) + ' mat');
-  if ((gameState.resources.water || 0) < cfg.waterCost) missing.push('Saknar ' + formatNumber(cfg.waterCost - (gameState.resources.water || 0)) + ' vatten');
-  if ((gameState.resources.glasses || 0) < 1) missing.push('Kräver glasögon');
-  if ((gameState.resources.spears || 0) - getCapacityToolUse('spears') < 1) missing.push('Kräver ledigt spjut');
-  if ((gameState.resources.backpacks || 0) - getCapacityToolUse('backpacks') < 1) missing.push('Kräver ledig ryggsäck');
+  if (!isExpeditionUnlocked()) missing.push(t('expeditionRequirements.councilFirst'));
+  if (getResourceTotalFood() < cfg.foodCost) missing.push(t('requirements.missingResource', { amount: formatNumber(cfg.foodCost - getResourceTotalFood()), resource: getResourceLabel('food') }));
+  if ((gameState.resources.water || 0) < cfg.waterCost) missing.push(t('requirements.missingResource', { amount: formatNumber(cfg.waterCost - (gameState.resources.water || 0)), resource: getResourceLabel('water') }));
+  if ((gameState.resources.glasses || 0) < 1) missing.push(t('requirements.requiresResource', { resource: getResourceLabel('glasses') }));
+  if ((gameState.resources.spears || 0) - getCapacityToolUse('spears') < 1) missing.push(t('expeditionRequirements.freeSpear'));
+  if ((gameState.resources.backpacks || 0) - getCapacityToolUse('backpacks') < 1) missing.push(t('expeditionRequirements.freeBackpack'));
   return { ok: missing.length === 0, missing: missing };
 }
 function startExpedition(survivorId) {
@@ -1199,7 +1302,7 @@ function startExpedition(survivorId) {
     return false;
   }
   if (!status.ok) {
-    addLog('Expeditionen kan inte starta: ' + status.missing.join(', ') + '.', 'warning');
+    addLog(t('messages.expeditionCannotStart', { requirements: status.missing.join(', ') }, 'The expedition cannot start: ' + status.missing.join(', ') + '.'), 'warning');
     return false;
   }
   gameState.resources.food -= cfg.foodCost;
@@ -1222,7 +1325,7 @@ function startExpedition(survivorId) {
   survivor.assignedJob = 'expedition';
   survivor.state = 'expedition';
   addLog(survivor.name + ' ger sig in i djungeln.', 'info');
-  addExpeditionLog(survivor.name + ' lämnar lägret med mat, vatten, spjut, ryggsäck och glasögon.');
+  addExpeditionLog(t('messages.expeditionLeaveCamp', { name: survivor.name }, survivor.name + ' leaves camp with food, water, spear, backpack, and glasses.'));
   return true;
 }
 function finishExpedition(reason) {
@@ -1248,11 +1351,11 @@ function finishExpedition(reason) {
   expedition.survivorId = null;
   expedition.runFoundCockpit = false;
   expedition.position = { x: getExpeditionConfig().camp.x, y: getExpeditionConfig().camp.y };
-  addLog(reason || 'Expeditionen återvänder till lägret.', 'success');
-  addExpeditionLog(reason || 'Expeditionen återvänder till lägret.');
+  addLog(reason || t('messages.expeditionReturn', null, 'The expedition returns to camp.'), 'success');
+  addExpeditionLog(reason || t('messages.expeditionReturn', null, 'The expedition returns to camp.'));
   if (rescued) {
-    addLog(rescued.name + ' förs tryggt tillbaka till lägret från djungeln.', 'success');
-    addExpeditionLog(rescued.name + ' är nu framme i lägret.');
+    addLog(t('messages.rescuedReturn', { name: rescued.name }, rescued.name + ' is brought safely back to camp from the jungle.'), 'success');
+    addExpeditionLog(t('messages.rescuedAtCamp', { name: rescued.name }, rescued.name + ' is now in camp.'));
   }
   showExpeditionReturnCard(survivor, rescued, foundMapThisRun);
 }
@@ -1420,7 +1523,7 @@ function processExpeditionTick() {
   var survivor = getExpeditionSurvivor();
   if (!survivor || !survivor.alive) {
     expedition.active = false;
-    addExpeditionLog('Expeditionen avbryts.');
+    addExpeditionLog(t('messages.expeditionCancelled', null, 'The expedition is cancelled.'));
     return;
   }
   var cfg = getExpeditionConfig();
@@ -1482,7 +1585,7 @@ function processExpeditionTick() {
     if (expedition.returnTicksRemaining <= 0) {
       finishExpedition(survivor.name + ' återvänder från expeditionen.');
     } else {
-      addExpeditionLog(survivor.name + ' påbörjar säker återmarsch mot lägret. ' + expedition.returnTicksRemaining + ' tick kvar.');
+      addExpeditionLog(t('messages.expeditionSafeMarch', { name: survivor.name, ticks: expedition.returnTicksRemaining }, survivor.name + ' begins a safe march back to camp. ' + expedition.returnTicksRemaining + ' ticks remain.'));
     }
     return;
   }
@@ -1813,17 +1916,17 @@ function getProjectWorker(projectId) {
 function getRecipeCostText(recipe) {
   var costs = recipe.costs || {};
   var parts = [];
-  Object.keys(costs).forEach(function(key) { parts.push(formatNumber(costs[key]) + ' ' + key); });
-  return parts.length ? parts.join(', ') : 'Inga resurser';
+  Object.keys(costs).forEach(function(key) { parts.push(formatNumber(costs[key]) + ' ' + getResourceLabel(key)); });
+  return parts.length ? parts.join(', ') : (getLanguage() === 'se' ? 'Inga resurser' : 'No resources');
 }
 function getRecipeRequirements(recipe) {
   var requirements = Object.assign({}, recipe.requirements || {});
   requirements.resources = Object.assign({}, requirements.resources || {}, recipe.costs || {});
   if (recipe.requiresFire && getFireLevel() < recipe.requiresFire) {
-    requirements.custom = (requirements.custom || []).concat(['Kräver eld nivå ' + recipe.requiresFire]);
+    requirements.custom = (requirements.custom || []).concat([t('messages.requiresFireLevel', { level: recipe.requiresFire }, 'Requires fire level ' + recipe.requiresFire)]);
   }
   if ((recipe.workspace || 'camp') === 'raft' && !((gameState.world || {}).raftUnlocked)) {
-    requirements.custom = (requirements.custom || []).concat(['Kräver öråd för fas 3']);
+    requirements.custom = (requirements.custom || []).concat([t('messages.requiresPhase3Council', null, 'Requires the phase 3 council')]);
   }
   return requirements;
 }
@@ -1844,21 +1947,21 @@ function startProject(recipeId) {
   if (!recipe) return false;
   var requirementStatus = getRecipeRequirementStatus(recipe);
   if (!requirementStatus.ok) {
-    addLog('Kan inte starta ' + recipe.name.toLowerCase() + ': ' + requirementStatus.missing.join(', ') + '.', 'warning');
+    addLog(t('messages.projectCannotStart', { project: lowerFirst(getRecipeName(recipeId)), requirements: requirementStatus.missing.join(', ') }), 'warning');
     return false;
   }
   consumeResourceCosts(recipe.costs);
   getProjects().push({
     id: 'project_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
     recipeId: recipeId,
-    name: recipe.name,
+    name: getRecipeName(recipeId),
     workspace: recipe.workspace || 'camp',
     progressHours: 0,
     requiredHours: recipe.timeHours,
     assignedSurvivorId: null,
     status: 'paused'
   });
-  addLog('Projekt startat: ' + recipe.name.toLowerCase() + '.', 'info');
+  addLog(t('messages.projectStarted', { project: lowerFirst(getRecipeName(recipeId)) }), 'info');
   return true;
 }
 function pauseActiveProject(survivor, remember) {
@@ -1885,7 +1988,7 @@ function assignProject(projectId, survivorId) {
   survivor.activeTask = null;
   survivor.activeProjectId = project.id;
   survivor.restTicksRemaining = 0;
-  addLog(survivor.name + ' arbetar nu med: ' + project.name.toLowerCase() + '.', 'info');
+  addLog(t('messages.projectAssigned', { name: survivor.name, project: lowerFirst(project.name) }), 'info');
   return true;
 }
 function finishProject(project, survivor) {
@@ -1901,7 +2004,7 @@ function finishProject(project, survivor) {
     survivor.state = 'philosophize';
   }
   gameState.camp.projects = getProjects().filter(function(item) { return item.id !== project.id; });
-  addLog((survivor ? survivor.name : 'Lägret') + ' färdigställer: ' + recipe.name.toLowerCase() + '.', 'success');
+  addLog(t('messages.projectFinished', { name: survivor ? survivor.name : t('common.camp'), project: lowerFirst(getRecipeName(project.recipeId)) }), 'success');
 }
 function workOnProject(survivor) {
   var project = getProject(survivor.activeProjectId);
@@ -1974,15 +2077,15 @@ function startVoyage() {
   var summary = getRaftSummary();
   var expedition = getExpedition();
   if (!((gameState.world || {}).departureReady)) {
-    addLog('Flotten är inte markerad som avfärdsklar ännu.', 'warning');
+    addLog(t('messages.raftNotReady'), 'warning');
     return false;
   }
   if (!summary.ready) {
-    addLog('Flotten är inte längre fullt redo. Fyll på stockar, segel eller proviant innan ni seglar.', 'warning');
+    addLog(t('messages.raftNoLongerReady'), 'warning');
     return false;
   }
   if (expedition.active) {
-    addLog('Expeditionen måste vara tillbaka i lägret innan ni seglar.', 'warning');
+    addLog(t('messages.expeditionMustReturn'), 'warning');
     return false;
   }
   var voyage = getVoyageState();
@@ -2006,7 +2109,7 @@ function startVoyage() {
   }
   gameState.world.phase = 'sailing';
   currentView = 'sail';
-  addLog('Flotten lämnar stranden. Nu finns ingen väg tillbaka.', 'success');
+  addLog(t('messages.raftDeparture'), 'success');
   render();
   return true;
 }
@@ -2033,7 +2136,7 @@ function processVoyageTick() {
     voyage.completed = true;
     gameState.world.phase = 'rescued';
     currentView = 'sail';
-    addLog('Land i sikte. Flotten når äntligen hamn.', 'success');
+    addLog(t('messages.landSighted'), 'success');
     showVoyageArrivalArticles();
   }
 }
@@ -2058,21 +2161,21 @@ function getVillageEffectSummary() {
   var traitMorale = (passiveEffects.moraleBonus || 0) + (passiveEffects.groupMorale || 0);
   var coldRisk = fireLevel <= 0 && isNight();
   return [
-    { label: 'Eldnivå', value: fireLevel + '/4' },
-    { label: 'Skyddade personer', value: shelter.covered + '/' + shelter.aliveCount },
-    { label: 'Stormskydd mat', value: shelter.coveragePercent + '%' },
-    { label: 'Vila hälsa totalt', value: signedNumber(fireHealth + shelterHealth) + '/h' },
-    { label: 'Vila utmattning totalt', value: '+' + formatNumber(fireFatigue + shelterFatigue) + '/h' },
-    { label: 'Vila moral totalt', value: signedNumber(fireMorale + shelterMorale) + '/h' },
-    { label: 'Från eld', value: 'H ' + signedNumber(fireHealth) + ' / U +' + formatNumber(fireFatigue) + ' / M ' + signedNumber(fireMorale) },
-    { label: 'Från hus', value: 'H ' + signedNumber(shelterHealth) + ' / U +' + formatNumber(shelterFatigue) + ' / M ' + signedNumber(shelterMorale) },
-    { label: 'Passiv lägermoral', value: signedNumber(shelterCampMorale + traitMorale) },
-    { label: 'Från personer', value: signedNumber(traitMorale) },
-    { label: 'Konfliktrisk', value: formatNumber(stability.risk) + '%' },
-    { label: 'Händelsetryck från gruppstorlek', value: formatNumber(eventPressure) + 'x' },
-    { label: 'Skydd mot konflikt', value: 'Mat ' + Math.round(stability.foodCoverage * 100) + '% / Vatten ' + Math.round(stability.waterCoverage * 100) + '% / Hus ' + Math.round(stability.shelterCoverage * 100) + '%' },
-    { label: 'Personlighet konflikt', value: signedNumber(stability.traitModifier) + '%' },
-    { label: 'Nattrisk utan eld', value: coldRisk ? 'Aktiv' : 'Ingen' }
+    { label: getVillageMetricLabel('fireLevel'), value: fireLevel + '/4' },
+    { label: getVillageMetricLabel('shelteredPeople'), value: shelter.covered + '/' + shelter.aliveCount },
+    { label: getVillageMetricLabel('stormFoodProtection'), value: shelter.coveragePercent + '%' },
+    { label: getVillageMetricLabel('restHealthTotal'), value: signedNumber(fireHealth + shelterHealth) + '/h' },
+    { label: getVillageMetricLabel('restFatigueTotal'), value: '+' + formatNumber(fireFatigue + shelterFatigue) + '/h' },
+    { label: getVillageMetricLabel('restMoraleTotal'), value: signedNumber(fireMorale + shelterMorale) + '/h' },
+    { label: getVillageMetricLabel('fromFire'), value: t('common.healthShort') + ' ' + signedNumber(fireHealth) + ' / ' + t('common.fatigueShort') + ' +' + formatNumber(fireFatigue) + ' / ' + t('common.moraleShort') + ' ' + signedNumber(fireMorale) },
+    { label: getVillageMetricLabel('fromHuts'), value: t('common.healthShort') + ' ' + signedNumber(shelterHealth) + ' / ' + t('common.fatigueShort') + ' +' + formatNumber(shelterFatigue) + ' / ' + t('common.moraleShort') + ' ' + signedNumber(shelterMorale) },
+    { label: getVillageMetricLabel('passiveCampMorale'), value: signedNumber(shelterCampMorale + traitMorale) },
+    { label: getVillageMetricLabel('fromPeople'), value: signedNumber(traitMorale) },
+    { label: getVillageMetricLabel('conflictRisk'), value: formatNumber(stability.risk) + '%' },
+    { label: getVillageMetricLabel('groupPressure'), value: formatNumber(eventPressure) + 'x' },
+    { label: getVillageMetricLabel('conflictProtection'), value: localizeNameMap('resources', 'food') + ' ' + Math.round(stability.foodCoverage * 100) + '% / ' + localizeNameMap('resources', 'water') + ' ' + Math.round(stability.waterCoverage * 100) + '% / ' + localizeNameMap('resources', 'huts') + ' ' + Math.round(stability.shelterCoverage * 100) + '%' },
+    { label: getVillageMetricLabel('personalityConflict'), value: signedNumber(stability.traitModifier) + '%' },
+    { label: getVillageMetricLabel('nightRiskNoFire'), value: coldRisk ? getVillageMetricLabel('active') : getVillageMetricLabel('none') }
   ];
 }
 
@@ -2097,7 +2200,7 @@ function addLog(text, level) {
 
 function saveGame() {
   localStorage.setItem('lost_save', JSON.stringify(gameState));
-  addLog('Spelet sparades.', 'success');
+  addLog(t('ui.saveSuccess'), 'success');
 }
 
 function normalizeLoadedState() {
@@ -2141,6 +2244,7 @@ function normalizeLoadedState() {
   } else if (currentView === 'sail') {
     currentView = ((gameState.world || {}).raftUnlocked) ? 'raft' : 'camp';
   }
+  syncPlayerDisplayName();
   gameState.survivors.forEach(function(s, i){
     var peopleConfig = getPeopleConfig();
     s.isPlayer = !!s.isPlayer || i === 0;
@@ -2178,8 +2282,11 @@ function loadGame() {
   if (!saved) return;
   gameState = JSON.parse(saved);
   normalizeLoadedState();
-  addLog('Spelet laddades.', 'success');
   render();
+  requestAnimationFrame(function() {
+    addLog(t('ui.loadSuccess'), 'success');
+    render();
+  });
 }
 
 function createSurvivor(id, name, isPlayer, profile) {
@@ -2188,7 +2295,7 @@ function createSurvivor(id, name, isPlayer, profile) {
   var survivorProfile = profile || {};
   return {
     id: id,
-    name: name || survivorProfile.name || baseStats.name || 'Okänd',
+    name: name || survivorProfile.name || baseStats.name || t('common.unknown'),
     isPlayer: !!isPlayer,
     background: survivorProfile.background || 'none',
     traits: (survivorProfile.traits || []).slice(),
@@ -2223,19 +2330,19 @@ function newGame() {
     resources: { logs: 2, food: 1, water: 2, tinder: 1, glasses: 1, clay: 0, bamboo: 0, timber: 0, stone: 0, fiber: 0, rope: 0, leather: 0, stone_knives: 0, axes: 0, spears: 0, nets: 0, backpacks: 0, huts: 0, pots: 0 },
     raft: { raft_logs: 0, raft_sail: 0, raft_rig: 0, raft_hut: 0 },
     voyage: { active: false, completed: false, passengerCount: 0, daysElapsed: 0, totalDays: getRaftBalanceConfig().travelDays || 30, foodLostOverboard: 0, articleStage: 0 },
-    survivors: [createSurvivor('player_1', (GAME_DATA.people.playerTemplate && GAME_DATA.people.playerTemplate.name) || 'Du', true)],
+    survivors: [createSurvivor('player_1', getPlayerDisplayName(), true)],
     expedition: createExpeditionState(),
     discoveries: [],
     logs: []
   };
-  addLog('Du vaknar på en strand. Huvudet dunkar.', 'info');
-  addLog('Flygplanet. Det var flygplanet som störtade...', 'info');
-  addLog('Skriken. Människor skrek, planet bröts sönder...', 'info');
-  addLog('Passagerarna som föll ut, ner i havet. Kan jag vara den enda överlevaren?', 'info');
-  addLog('Du reser dig upp och börjar planlöst gå längs stranden.', 'info');
-  addLog('Du ser lite rök från djungeln. Troligen från krashen.', 'info');
-  addLog('Efter en halvtimmes vandring hittar du en bäck och lite torr ved.', 'info');
-  addLog('Bra plats för ett läger. Du har dina glasögon, kanske kan du tända en eld?', 'info');
+  addLog(t('messages.intro1'), 'info');
+  addLog(t('messages.intro2'), 'info');
+  addLog(t('messages.intro3'), 'info');
+  addLog(t('messages.intro4'), 'info');
+  addLog(t('messages.intro5'), 'info');
+  addLog(t('messages.intro6'), 'info');
+  addLog(t('messages.intro7'), 'info');
+  addLog(t('messages.intro8'), 'info');
   normalizeResourceInventory();
   render();
 }
@@ -2259,7 +2366,7 @@ function cycleDifficulty() {
   var order = ['easy', 'normal', 'hard'];
   var idx = order.indexOf(gameState.meta.difficulty || 'normal');
   gameState.meta.difficulty = order[(idx + 1) % order.length];
-  addLog('Svårighetsgrad: ' + getDifficultyConfig().label + '.', 'info');
+  addLog(t('messages.difficultyChanged', { difficulty: getDifficultyLabel(gameState.meta.difficulty || 'normal') }), 'info');
   render();
 }
 
@@ -2268,10 +2375,19 @@ function discover(id, logText) {
   if (hasDiscovery(id)) return false;
   gameState.discoveries.push(id);
   if (id === 'pots') gameState.resources.pots = Math.max(1, gameState.resources.pots || 0);
-  addLog(logText || ('Upptäckt: ' + getDiscoveryDef(id).name + '!'), 'success');
+  addLog(logText || t('messages.discovery', { name: getDiscoveryDef(id).name }), 'success');
   return true;
 }
-function getDiscoveryDef(id) { return GAME_DATA.discoveries.find(function(d){ return d.id === id; }); }
+function getDiscoveryDef(id) {
+  var base = GAME_DATA.discoveries.find(function(discovery) { return discovery.id === id; });
+  if (!base) return null;
+  if (getLanguage() === 'se') return base;
+  return Object.assign({}, base, {
+    name: t('discoveries.' + id + '.name', null, base.name),
+    logIdeas: tArray('discoveries.' + id + '.logIdeas', base.logIdeas || []),
+    logArrival: tArray('discoveries.' + id + '.logArrival', base.logArrival || [])
+  });
+}
 function getEligibleDiscoveries(source) {
   return GAME_DATA.discoveries.filter(function(d) {
     if (hasDiscovery(d.id)) return false;
@@ -2284,7 +2400,7 @@ function rollDiscoveryFromIdea(survivor) {
   var options = getEligibleDiscoveries('idea');
   if (!options.length) return false;
   var pick = options[0];
-  var logs = pick.logIdeas || ['{name} kommer till dig med en idé han fick. Vi kan göra något nytt.'];
+  var logs = pick.logIdeas || ['{name} comes to you with a new idea. We can make something new.'];
   var msg = logs[Math.floor(Math.random() * logs.length)].replace('{name}', survivor.name);
   return discover(pick.id, msg);
 }
@@ -2293,7 +2409,7 @@ function rollDiscoveryFromArrival(survivor) {
   var options = getEligibleDiscoveries('arrival');
   if (!options.length) return false;
   var pick = options[0];
-  var logs = pick.logArrival || ['{name} anländer med ny kunskap.'];
+  var logs = pick.logArrival || ['{name} arrives with new knowledge.'];
   var msg = logs[Math.floor(Math.random() * logs.length)].replace('{name}', survivor.name);
   return discover(pick.id, msg);
 }
@@ -2301,16 +2417,16 @@ function rollDiscoveryFromArrival(survivor) {
 function setAssignedJob(survivor, jobId) {
   if (!survivor || !survivor.alive) return;
   if (survivor.state === 'away') {
-    addLog(survivor.name + ' är inte i lägret just nu.', 'warning');
+    addLog(t('messages.survivorNotInCamp', { name: survivor.name }), 'warning');
     return;
   }
   if (survivor.state === 'expedition') {
-    addLog(survivor.name + ' är ute på expedition.', 'warning');
+    addLog(t('messages.survivorOnExpedition', { name: survivor.name }), 'warning');
     return;
   }
   var requirementStatus = getRequirementStatus(getJobRequirements(jobId), { survivorId: survivor.id });
   if (!requirementStatus.ok) {
-    addLog(survivor.name + ' kan inte börja: ' + requirementStatus.missing.join(', ') + '.', 'warning');
+    addLog(t('messages.survivorCannotStart', { name: survivor.name, requirements: requirementStatus.missing.join(', ') }), 'warning');
     return;
   }
   if (jobId !== 'craft') pauseActiveProject(survivor, false);
@@ -2333,7 +2449,7 @@ function setPlayerJob(jobId) {
   var player = gameState.survivors[0];
   if (!player || !player.alive) return;
   setAssignedJob(player, jobId);
-  addLog('Du fokuserar nu på: ' + CONFIG.jobs[player.assignedJob].name.toLowerCase() + '.', 'info');
+  addLog(t('messages.focusJobPlayer', { job: lowerFirst(getJobName(player.assignedJob)) }), 'info');
   render();
 }
 function cycleJob(survivorId) {
@@ -2342,7 +2458,7 @@ function cycleJob(survivorId) {
   var order = getAssignableJobActions().map(function(action) { return action.id; });
   var idx = order.indexOf(survivor.assignedJob);
   setAssignedJob(survivor, order[(idx + 1) % order.length]);
-  if (!survivor.isPlayer) addLog(survivor.name + ' får order: ' + CONFIG.jobs[survivor.assignedJob].name.toLowerCase() + '.', 'info');
+  if (!survivor.isPlayer) addLog(t('messages.focusJobSurvivor', { name: survivor.name, job: lowerFirst(getJobName(survivor.assignedJob)) }), 'info');
   render();
 }
 
@@ -2425,11 +2541,11 @@ function processWorkJob(survivor) {
         gameState.resources.tinder += perTick(CONFIG.rates.tenderWoodPerHour * efficiency);
       } else {
         survivor.assignedJob = 'philosophize'; survivor.state = 'philosophize';
-        addLog(survivor.name + ' slutar göra tändved, veden är slut.', 'warning');
+        addLog(t('messages.tinderOut', { name: survivor.name }), 'warning');
       }
       break;
     case 'feed_fire':
-      if (getFireLevel() <= 0) { survivor.assignedJob = 'philosophize'; survivor.state = 'philosophize'; addLog(survivor.name + ' slutar mata elden, den är slocknad.', 'warning'); break; }
+      if (getFireLevel() <= 0) { survivor.assignedJob = 'philosophize'; survivor.state = 'philosophize'; addLog(t('messages.fireGone', { name: survivor.name }), 'warning'); break; }
       var feed = perTick(CONFIG.rates.feedFireWoodPerHour * efficiency);
       if ((gameState.resources.logs || 0) > 0 && (gameState.camp.fireWood || 0) < CONFIG.fireMaxWood) {
         var beforeLevel = getFireLevel();
@@ -2437,7 +2553,7 @@ function processWorkJob(survivor) {
         gameState.resources.logs -= used;
         gameState.camp.fireWood += used;
         var synced = syncFireLevelFromWood();
-        if (synced.current > beforeLevel) addLog(survivor.name + ' får elden att växa till nivå ' + synced.current + '.', 'success');
+        if (synced.current > beforeLevel) addLog(t('messages.fireGrows', { name: survivor.name, level: synced.current }), 'success');
       } else if ((gameState.resources.logs || 0) <= 0 || (gameState.camp.fireWood || 0) >= CONFIG.fireMaxWood) {
         survivor.assignedJob = 'philosophize'; survivor.state = 'philosophize';
       }
@@ -2490,11 +2606,11 @@ function processRest(survivor) {
   survivor.restTicksRemaining = Math.max(0, (survivor.restTicksRemaining || 0) - 1);
   if (survivor.restTicksRemaining <= 0) {
     if (tryResumeProjectAfterRest(survivor)) {
-      addLog(survivor.name + ' har vilat klart och fortsätter sitt projekt.', 'info');
+      addLog(t('messages.readyProjectResume', { name: survivor.name }), 'info');
     } else {
       survivor.assignedJob = 'philosophize';
       survivor.state = 'philosophize';
-      addLog(survivor.name + ' har vilat klart och filosoferar nu.', 'info');
+      addLog(t('messages.readyPhilosophize', { name: survivor.name }), 'info');
     }
   }
 }
@@ -2525,7 +2641,7 @@ function processAway(survivor) {
   if (survivor.awayTicksRemaining <= 0) {
     survivor.state = 'philosophize';
     survivor.assignedJob = 'philosophize';
-    addLog(survivor.name + ' återvänder till lägret, tyst och utmattad.', 'warning');
+    addLog(t('messages.awayReturn', { name: survivor.name }), 'warning');
   }
 }
 function processMoraleBreakdown(survivor) {
@@ -2536,7 +2652,7 @@ function processMoraleBreakdown(survivor) {
   survivor.breakdownCooldownTicks = cfg.breakdownCooldownTicks || 12;
   survivor.morale = clamp((survivor.morale || 0) + 8, 0, 100);
   setAssignedJob(survivor, 'rest');
-  addLog(survivor.name + ' bryter ihop och kan inte fortsätta arbeta. Vila, mat, vatten, eld och skydd blir viktigare nu.', 'danger');
+  addLog(t('messages.campBreakdown', { name: survivor.name }), 'danger');
 }
 function processSurvivorState(survivor) {
   if ((survivor.breakdownCooldownTicks || 0) > 0) survivor.breakdownCooldownTicks = Math.max(0, survivor.breakdownCooldownTicks - 1);
@@ -2548,13 +2664,13 @@ function processSurvivorState(survivor) {
   applyNeedsAndCondition(survivor);
   if (survivor.health <= 0) {
     survivor.alive = false;
-    addLog(survivor.name + ' har dött.', 'danger');
+    addLog(t('messages.hasDied', { name: survivor.name }), 'danger');
     return;
   }
   if (survivor.state === 'work' && survivor.fatigue >= CONFIG.fatigueRestThreshold) {
     pauseActiveProject(survivor, true);
     setAssignedJob(survivor, 'rest');
-    addLog(survivor.name + ' måste vila.', 'warning');
+    addLog(t('messages.mustRest', { name: survivor.name }), 'warning');
   }
   switch (survivor.state) {
     case 'work': processWorkJob(survivor); break;
@@ -2589,16 +2705,16 @@ function maybeSpawnSurvivorFromFire() {
   if (Math.random() < scalePositiveChance(chance)) {
     var profile = generateNewcomerProfile();
     if (!profile) {
-      addLog('Ingen ny överlevare syns till just nu.', 'info');
+      addLog(t('messages.noNewSurvivor'), 'info');
       return;
     }
     var newcomer = createSurvivor('survivor_' + Date.now(), profile.name, false, profile);
     gameState.survivors.push(newcomer);
-    addLog((eventConfig.successLog || '{name} hittar lägret tack vare den stora elden.').replace('{name}', profile.name), 'success');
+    addLog((getEventText('spawnFromFire', 'successLog', '{name} finds the camp thanks to the great fire.')).replace('{name}', profile.name), 'success');
     showArrivalCard(newcomer);
     rollDiscoveryFromArrival(newcomer);
   } else {
-    addLog(eventConfig.waitingLog || 'Signalelden brinner starkt, men ingen syns ännu.', 'info');
+    addLog(getEventText('spawnFromFire', 'waitingLog', t('messages.signalFireStrong')), 'info');
   }
 }
 
@@ -2633,14 +2749,14 @@ function applyConflictEvent(summary) {
     getAliveSurvivors().forEach(function(s) {
       if (s.id !== target.id) s.morale = clamp((s.morale || 0) - 4, 0, 100);
     });
-    addLog(target.name + ' får nog av lägret och försvinner bort från de andra en stund. Gruppen skakas av splittringen.', 'danger');
+    addLog(t('messages.campConflictAway', { name: target.name }, target.name + ' has had enough of camp and disappears for a while. The group is shaken by the split.'), 'danger');
     return;
   }
   if (level === 'severe') {
     target.health = clamp((target.health || 0) - 6, 0, 100);
     target.morale = clamp((target.morale || 0) - 8, 0, 100);
     getAliveSurvivors().forEach(function(s) { if (s.id !== target.id) s.morale = clamp((s.morale || 0) - 3, 0, 100); });
-    addLog('Ett hårt bråk bryter ut i lägret. ' + target.name + ' blir skadad och moralen faller.', 'danger');
+    addLog(t('messages.campConflictFight', { name: target.name }, 'A harsh fight breaks out in camp. ' + target.name + ' is injured and morale falls.'), 'danger');
     return;
   }
   if (level === 'moderate') {
@@ -2651,7 +2767,7 @@ function applyConflictEvent(summary) {
     return;
   }
   target.morale = clamp((target.morale || 0) - 4, 0, 100);
-  addLog('Irritation sprider sig i lägret. ' + target.name + ' tappar moral.', 'warning');
+  addLog(t('messages.campConflictIrritation', { name: target.name }, 'Irritation spreads through camp. ' + target.name + ' loses morale.'), 'warning');
 }
 function processConflictEvents() {
   if ((gameState.camp.conflictCooldownTicks || 0) > 0) {
@@ -2706,7 +2822,7 @@ function processEvents() {
     var alive = getAliveSurvivors();
     if (alive.length) {
       if (guardFactor > 0 && Math.random() < Math.min(0.75, guardFactor * (animalAttack.guardRepelChancePerFactor || 0))) {
-        addLog((animalAttack.guardRepelLog || '{guards} håller djuren borta från lägret.').replace('{guards}', guardNames || 'Vakterna'), 'success');
+        addLog((getEventText('animalAttack', 'guardRepelLog', '{guards} keep the animals away from camp.')).replace('{guards}', guardNames || t('jobs.guard')), 'success');
         if (guardFactor >= 1.35) {
           gameState.resources.food += animalAttack.guardRewardFood || 0;
           gameState.resources.leather += animalAttack.guardRewardLeather || 0;
@@ -2720,7 +2836,7 @@ function processEvents() {
         Math.max(0.3, 1 - guardFactor * (animalAttack.guardDamageReductionPerFactor || 0));
       target.health = clamp(target.health - healthLoss, 0, 100);
       target.morale = clamp(target.morale - (animalAttack.moraleLoss || 5) * (animalTier.moraleMultiplier || 1), 0, 100);
-      addLog((animalAttack.log || 'Vilda djur anfaller. {name} blir skadad.').replace('{name}', target.name), 'danger');
+      addLog((getEventText('animalAttack', 'log', 'Wild animals attack. {name} is injured.')).replace('{name}', target.name), 'danger');
     }
   }
   var ratGuardNeed = ratTier.guardExpectation || 0;
@@ -2733,7 +2849,7 @@ function processEvents() {
   if (getResourceTotalFood() > (rats.minFood || 5) && getFireLevel() < (rats.maxFireLevelExclusive || 2) && Math.random() < scaleNegativeChance(ratChance)) {
     var loss = Math.min(getResourceTotalFood(), ((rats.minLoss || 1) + Math.random() * (rats.maxExtraLoss || 1.5)) * (ratTier.lossMultiplier || 1));
     gameState.resources.food = Math.max(0, (gameState.resources.food || 0) - loss);
-    addLog((rats.log || 'Råttor kommer åt maten och äter {amount} mat.').replace('{amount}', formatNumber(loss)), 'warning');
+    addLog((getEventText('rats', 'log', 'Rats get into the food and eat {amount} food.')).replace('{amount}', formatNumber(loss)), 'warning');
   }
   var shelterNeed = stormTier.shelterExpectation || 0;
   var shelterShortage = Math.max(0, shelterNeed - shelterCoverage);
@@ -2757,10 +2873,10 @@ function processEvents() {
         survivor.health = clamp(survivor.health - (1 - shelterCoverage) * (storm.healthLossNoShelterAtNight || 0) * (stormTier.healthMultiplier || 1), 0, 100);
       }
     });
-    addLog((storm.log || 'En storm slår in över lägret och förstör {amount} mat och {water} vatten.')
+    addLog(getEventText('storm', 'log', 'A storm lashes the camp and destroys {amount} food and {water} water.')
       .replace('{amount}', formatNumber(stormLoss))
       .replace('{water}', formatNumber(stormWaterLoss)), 'warning');
-    if (shelterCoverage > 0) addLog(storm.shelterLog || 'Husen skyddar en del av maten från stormen.', 'info');
+    if (shelterCoverage > 0) addLog(getEventText('storm', 'shelterLog', 'The huts protect some of the food from the storm.'), 'info');
   }
 }
 
@@ -2770,9 +2886,9 @@ function consumeFire() {
   gameState.camp.fireWood = clamp((gameState.camp.fireWood || 0) - perTick(CONFIG.rates.fireConsumptionPerHourPerLevel * lvl), 0, CONFIG.fireMaxWood);
   var result = syncFireLevelFromWood();
   if (result.current === 0 && result.previous > 0) {
-    addLog('Elden har slocknat!', 'danger');
+    addLog(t('messages.fireOut'), 'danger');
   } else if (result.current < result.previous) {
-    addLog('Elden sjunker till nivå ' + result.current + '.', 'warning');
+    addLog(t('messages.fireDrops', { level: result.current }), 'warning');
   }
 }
 
@@ -2812,10 +2928,10 @@ function executeDirectAction(actionId) {
   if (!player || !player.alive) return;
   switch (actionId) {
     case 'light_fire':
-      if ((gameState.resources.tinder || 0) < 1) { addLog('Du behöver tändved.', 'warning'); break; }
-      if ((gameState.resources.logs || 0) < 1) { addLog('Du behöver ved för att tända elden.', 'warning'); break; }
-      if ((gameState.resources.glasses || 0) <= 0 && getFireLevel() <= 0) { addLog('Du behöver glasögon eller glöd.', 'warning'); break; }
-      gameState.resources.logs -= 1; gameState.resources.tinder -= 1; gameState.camp.fireWood = clamp(Math.max(1, (gameState.camp.fireWood || 0) + 1), 0, CONFIG.fireMaxWood); syncFireLevelFromWood(); discover('fire_building', 'Elden flammar upp. Nu kan ni hålla värmen och signalera.');
+      if ((gameState.resources.tinder || 0) < 1) { addLog(t('messages.needTinder'), 'warning'); break; }
+      if ((gameState.resources.logs || 0) < 1) { addLog(t('messages.needWoodForFire'), 'warning'); break; }
+      if ((gameState.resources.glasses || 0) <= 0 && getFireLevel() <= 0) { addLog(t('messages.needGlassesOrEmbers'), 'warning'); break; }
+      gameState.resources.logs -= 1; gameState.resources.tinder -= 1; gameState.camp.fireWood = clamp(Math.max(1, (gameState.camp.fireWood || 0) + 1), 0, CONFIG.fireMaxWood); syncFireLevelFromWood(); discover('fire_building', t('discoveries.fire_building.name'));
       break;
   }
   normalizeResourceInventory();
@@ -2824,24 +2940,24 @@ function executeDirectAction(actionId) {
 
 function getAvailableActions() {
   var actions = [
-    { id: 'wood', name: 'Samla ved', icon: icon('wood'), mode: 'job' },
-    { id: 'timber', name: 'Hugg timmer', icon: icon('timber'), mode: 'job' },
-    { id: 'food', name: 'Samla mat', icon: icon('food'), mode: 'job' },
-    { id: 'water', name: 'Samla vatten', icon: icon('water'), mode: 'job' },
-    { id: 'fiber', name: 'Samla fibrer', icon: icon('fiber'), mode: 'job' },
-    { id: 'fish', name: 'Fiska', icon: icon('fish'), mode: 'job' },
-    { id: 'hunt', name: 'Jaga', icon: icon('hunt'), mode: 'job' },
-    { id: 'guard', name: 'Vakta', icon: icon('guard'), mode: 'job' },
-    { id: 'make_tinder', name: 'Gör tändved', icon: icon('tinder'), mode: 'job' },
-    { id: 'feed_fire', name: 'Lägg på ved', icon: icon('fire'), mode: 'job' },
-    { id: 'philosophize', name: 'Filosoferar', icon: icon('idea'), mode: 'job' },
-    { id: 'rest', name: 'Vila', icon: icon('rest'), mode: 'job' },
-    { id: 'care', name: 'Vårda', icon: icon('care'), mode: 'job' }
+    { id: 'wood', name: getJobName('wood'), icon: icon('wood'), mode: 'job' },
+    { id: 'timber', name: getJobName('timber'), icon: icon('timber'), mode: 'job' },
+    { id: 'food', name: getJobName('food'), icon: icon('food'), mode: 'job' },
+    { id: 'water', name: getJobName('water'), icon: icon('water'), mode: 'job' },
+    { id: 'fiber', name: getJobName('fiber'), icon: icon('fiber'), mode: 'job' },
+    { id: 'fish', name: getJobName('fish'), icon: icon('fish'), mode: 'job' },
+    { id: 'hunt', name: getJobName('hunt'), icon: icon('hunt'), mode: 'job' },
+    { id: 'guard', name: getJobName('guard'), icon: icon('guard'), mode: 'job' },
+    { id: 'make_tinder', name: getJobName('make_tinder'), icon: icon('tinder'), mode: 'job' },
+    { id: 'feed_fire', name: getJobName('feed_fire'), icon: icon('fire'), mode: 'job' },
+    { id: 'philosophize', name: getJobName('philosophize'), icon: icon('idea'), mode: 'job' },
+    { id: 'rest', name: getJobName('rest'), icon: icon('rest'), mode: 'job' },
+    { id: 'care', name: getJobName('care'), icon: icon('care'), mode: 'job' }
   ];
-  actions.push({ id: 'clay', name: 'Samla lera', icon: icon('clay'), mode: 'job' });
-  actions.push({ id: 'stone', name: 'Samla sten', icon: icon('stone'), mode: 'job' });
-  actions.push({ id: 'bamboo', name: 'Samla bambu', icon: icon('bamboo'), mode: 'job' });
-  if ((gameState.resources.logs || 0) > 0 && (gameState.resources.tinder || 0) > 0 && ((gameState.resources.glasses || 0) > 0 || getFireLevel() > 0)) actions.push({ id: 'light_fire', name: 'Tänd eld', icon: icon('fire'), mode: 'direct' });
+  actions.push({ id: 'clay', name: getJobName('clay'), icon: icon('clay'), mode: 'job' });
+  actions.push({ id: 'stone', name: getJobName('stone'), icon: icon('stone'), mode: 'job' });
+  actions.push({ id: 'bamboo', name: getJobName('bamboo'), icon: icon('bamboo'), mode: 'job' });
+  if ((gameState.resources.logs || 0) > 0 && (gameState.resources.tinder || 0) > 0 && ((gameState.resources.glasses || 0) > 0 || getFireLevel() > 0)) actions.push({ id: 'light_fire', name: t('shell.fire'), icon: icon('fire'), mode: 'direct' });
   return actions.filter(function(action) { return action.mode === 'direct' || isJobVisible(action.id); });
 }
 
@@ -2859,23 +2975,23 @@ function isActionAvailable(action) {
 
 function getAssignableJobActions() {
   var actions = [
-    { id: 'wood', name: 'Ved', icon: icon('wood'), mode: 'job' },
-    { id: 'timber', name: 'Timmer', icon: icon('timber'), mode: 'job' },
-    { id: 'food', name: 'Mat', icon: icon('food'), mode: 'job' },
-    { id: 'water', name: 'Vatten', icon: icon('water'), mode: 'job' },
-    { id: 'fiber', name: 'Fiber', icon: icon('fiber'), mode: 'job' },
-    { id: 'fish', name: 'Fiska', icon: icon('fish'), mode: 'job' },
-    { id: 'hunt', name: 'Jaga', icon: icon('hunt'), mode: 'job' },
-    { id: 'guard', name: 'Vakta', icon: icon('guard'), mode: 'job' },
-    { id: 'make_tinder', name: 'Tändved', icon: icon('tinder'), mode: 'job' },
-    { id: 'feed_fire', name: 'Eld', icon: icon('fire'), mode: 'job' },
-    { id: 'philosophize', name: 'Filosoferar', icon: icon('idea'), mode: 'job' },
-    { id: 'rest', name: 'Vila', icon: icon('rest'), mode: 'job' },
-    { id: 'care', name: 'Vårda', icon: icon('care'), mode: 'job' }
+    { id: 'wood', name: localizeNameMap('resources', 'logs'), icon: icon('wood'), mode: 'job' },
+    { id: 'timber', name: localizeNameMap('resources', 'timber'), icon: icon('timber'), mode: 'job' },
+    { id: 'food', name: localizeNameMap('resources', 'food'), icon: icon('food'), mode: 'job' },
+    { id: 'water', name: localizeNameMap('resources', 'water'), icon: icon('water'), mode: 'job' },
+    { id: 'fiber', name: localizeNameMap('resources', 'fiber'), icon: icon('fiber'), mode: 'job' },
+    { id: 'fish', name: getJobName('fish'), icon: icon('fish'), mode: 'job' },
+    { id: 'hunt', name: getJobName('hunt'), icon: icon('hunt'), mode: 'job' },
+    { id: 'guard', name: getJobName('guard'), icon: icon('guard'), mode: 'job' },
+    { id: 'make_tinder', name: localizeNameMap('resources', 'tinder'), icon: icon('tinder'), mode: 'job' },
+    { id: 'feed_fire', name: t('shell.fire'), icon: icon('fire'), mode: 'job' },
+    { id: 'philosophize', name: getJobName('philosophize'), icon: icon('idea'), mode: 'job' },
+    { id: 'rest', name: getJobName('rest'), icon: icon('rest'), mode: 'job' },
+    { id: 'care', name: getJobName('care'), icon: icon('care'), mode: 'job' }
   ];
-  actions.push({ id: 'clay', name: 'Lera', icon: icon('clay'), mode: 'job', discovery:'clay' });
-  actions.push({ id: 'stone', name: 'Sten', icon: icon('stone'), mode: 'job', discovery:'stone' });
-  actions.push({ id: 'bamboo', name: 'Bambu', icon: icon('bamboo'), mode: 'job', discovery:'bamboo' });
+  actions.push({ id: 'clay', name: localizeNameMap('resources', 'clay'), icon: icon('clay'), mode: 'job', discovery:'clay' });
+  actions.push({ id: 'stone', name: localizeNameMap('resources', 'stone'), icon: icon('stone'), mode: 'job', discovery:'stone' });
+  actions.push({ id: 'bamboo', name: localizeNameMap('resources', 'bamboo'), icon: icon('bamboo'), mode: 'job', discovery:'bamboo' });
   return actions.filter(function(action) { return isJobVisible(action.id); });
 }
 
@@ -2883,7 +2999,7 @@ function setSurvivorJob(survivorId, jobId) {
   var survivor = getAliveSurvivors().find(function(s){ return s.id === survivorId; });
   if (!survivor) return;
   setAssignedJob(survivor, jobId);
-  addLog(survivor.name + ' fokuserar nu på: ' + CONFIG.jobs[jobId].name.toLowerCase() + '.', 'info');
+  addLog(t('messages.setSurvivorJob', { name: survivor.name, job: lowerFirst(getJobName(jobId)) }), 'info');
   render();
 }
 
@@ -2901,23 +3017,23 @@ function renderJobMetrics() {
   if (!container) return;
   var counts = getJobAssignmentCounts();
   var jobDefs = {
-    wood: { name: 'Ved', icon: icon('wood') },
-    timber: { name: 'Timmer', icon: icon('timber') },
-    food: { name: 'Mat', icon: icon('food') },
-    water: { name: 'Vatten', icon: icon('water') },
-    fiber: { name: 'Fiber', icon: icon('fiber') },
-    fish: { name: 'Fiska', icon: icon('fish') },
-    hunt: { name: 'Jaga', icon: icon('hunt') },
-    guard: { name: 'Vakta', icon: icon('guard') },
-    make_tinder: { name: 'Tändved', icon: icon('tinder') },
-    feed_fire: { name: 'Eld', icon: icon('fire') },
-    clay: { name: 'Lera', icon: icon('clay') },
-    stone: { name: 'Sten', icon: icon('stone') },
-    bamboo: { name: 'Bambu', icon: icon('bamboo') },
-    care: { name: 'Vårda', icon: icon('care') },
-    rest: { name: 'Vila', icon: icon('rest') },
-    philosophize: { name: 'Filosoferar', icon: icon('idea') },
-    expedition: { name: 'Expedition', icon: icon('explore') }
+    wood: { name: localizeNameMap('resources', 'logs'), icon: icon('wood') },
+    timber: { name: localizeNameMap('resources', 'timber'), icon: icon('timber') },
+    food: { name: localizeNameMap('resources', 'food'), icon: icon('food') },
+    water: { name: localizeNameMap('resources', 'water'), icon: icon('water') },
+    fiber: { name: localizeNameMap('resources', 'fiber'), icon: icon('fiber') },
+    fish: { name: getJobName('fish'), icon: icon('fish') },
+    hunt: { name: getJobName('hunt'), icon: icon('hunt') },
+    guard: { name: getJobName('guard'), icon: icon('guard') },
+    make_tinder: { name: localizeNameMap('resources', 'tinder'), icon: icon('tinder') },
+    feed_fire: { name: t('shell.fire'), icon: icon('fire') },
+    clay: { name: localizeNameMap('resources', 'clay'), icon: icon('clay') },
+    stone: { name: localizeNameMap('resources', 'stone'), icon: icon('stone') },
+    bamboo: { name: localizeNameMap('resources', 'bamboo'), icon: icon('bamboo') },
+    care: { name: getJobName('care'), icon: icon('care') },
+    rest: { name: getJobName('rest'), icon: icon('rest') },
+    philosophize: { name: getJobName('philosophize'), icon: icon('idea') },
+    expedition: { name: t('shell.expedition'), icon: icon('explore') }
   };
   var order = ['wood', 'timber', 'food', 'water', 'fiber', 'fish', 'hunt', 'guard', 'clay', 'stone', 'bamboo', 'make_tinder', 'feed_fire', 'care', 'rest', 'philosophize', 'expedition'];
   var active = order.filter(function(jobId) { return (counts[jobId] || 0) > 0; });
@@ -2927,7 +3043,7 @@ function renderJobMetrics() {
   }
   container.innerHTML = active.map(function(jobId) {
     var def = jobDefs[jobId] || { name: jobId, icon: '' };
-    return '<div class="job-badge" title="' + def.name + ': ' + counts[jobId] + ' tilldelade"><span>' + def.icon + '</span><span class="job-badge-count">' + counts[jobId] + '</span></div>';
+    return '<div class="job-badge" title="' + def.name + ': ' + counts[jobId] + '"><span>' + def.icon + '</span><span class="job-badge-count">' + counts[jobId] + '</span></div>';
   }).join('');
 }
 
@@ -2936,47 +3052,47 @@ function renderTopBar() {
   document.getElementById('time').textContent = formatTime(gameState.meta.dayMinutes);
   document.getElementById('threat').textContent = formatNumber(gameState.world.threat) + '%';
   document.getElementById('morale').textContent = formatNumber(gameState.camp.morale) + '%';
-  document.getElementById('difficulty-label').textContent = getDifficultyConfig().label;
+  document.getElementById('difficulty-label').textContent = getDifficultyLabel(gameState.meta.difficulty || 'normal');
   renderJobMetrics();
 }
 function renderFire() {
   var pips = document.querySelectorAll('.fire-pip');
   var lvl = getFireLevel();
   for (var i = 0; i < pips.length; i++) pips[i].classList.toggle('active', i < lvl && lvl > 0);
-  var status = 'Slocknad';
-  if (lvl === 1) status = 'Gnista'; else if (lvl === 2) status = 'Liten'; else if (lvl === 3) status = 'Stadig'; else if (lvl >= 4) status = 'Stor';
-  if (lvl > 0 || (gameState.camp.fireWood || 0) > 0) status += ' (' + formatNumber(gameState.camp.fireWood || 0) + '/' + formatNumber(CONFIG.fireMaxWood) + ')';
+  var status = t('fireStatus.out');
+  if (lvl === 1) status = t('fireStatus.spark'); else if (lvl === 2) status = t('fireStatus.small'); else if (lvl === 3) status = t('fireStatus.steady'); else if (lvl >= 4) status = t('fireStatus.large');
+  if (lvl > 0 || (gameState.camp.fireWood || 0) > 0) status = t('fireStatus.withFuel', { status: status, current: formatNumber(gameState.camp.fireWood || 0), max: formatNumber(CONFIG.fireMaxWood) });
   document.getElementById('fire-status').textContent = status;
 }
 function renderResources() {
   var r = gameState.resources, el = document.getElementById('resources');
   var shelter = getShelterSummary();
-  var hutTitle = 'Hus förbättrar vila och moral och skyddar mat vid storm. Kapacitet: ' + shelter.covered + '/' + shelter.aliveCount + ' platser (' + shelter.coveragePercent + '% täckning).';
+  var hutTitle = t('camp.hutsTitle', { covered: shelter.covered, alive: shelter.aliveCount, coverage: shelter.coveragePercent });
   var items = [
-    { key: 'logs', icon: 'wood', label: 'Ved' },
-    { key: 'food', icon: 'food', label: 'Mat' },
-    { key: 'water', icon: 'water', label: 'Vatten' },
-    { key: 'tinder', icon: 'tinder', label: 'Tändved' },
-    { key: 'fiber', icon: 'fiber', label: 'Fiber' },
-    { key: 'clay', icon: 'clay', label: 'Lera' },
-    { key: 'stone', icon: 'stone', label: 'Sten' },
-    { key: 'bamboo', icon: 'bamboo', label: 'Bambu' },
-    { key: 'timber', icon: 'timber', label: 'Timmer' },
-    { key: 'rope', icon: 'rope', label: 'Rep' },
-    { key: 'leather', icon: 'leather', label: 'Läder' },
-    { key: 'stone_knives', icon: 'knife', label: 'Stenkniv' },
-    { key: 'axes', icon: 'axe', label: 'Yxa' },
-    { key: 'spears', icon: 'spear', label: 'Spjut' },
-    { key: 'nets', icon: 'net', label: 'Nät' },
-    { key: 'backpacks', icon: 'backpack', label: 'Ryggsäck' },
-    { key: 'huts', icon: 'hut', label: 'Hus', title: hutTitle, value: formatNumber(r.huts) + ' (' + shelter.covered + '/' + shelter.aliveCount + ')' },
-    { key: 'pots', icon: 'pot', label: 'Krukor' },
-    { key: 'glasses', icon: 'glasses', label: 'Glasögon' }
+    { key: 'logs', icon: 'wood', label: localizeNameMap('resources', 'logs') },
+    { key: 'food', icon: 'food', label: localizeNameMap('resources', 'food') },
+    { key: 'water', icon: 'water', label: localizeNameMap('resources', 'water') },
+    { key: 'tinder', icon: 'tinder', label: localizeNameMap('resources', 'tinder') },
+    { key: 'fiber', icon: 'fiber', label: localizeNameMap('resources', 'fiber') },
+    { key: 'clay', icon: 'clay', label: localizeNameMap('resources', 'clay') },
+    { key: 'stone', icon: 'stone', label: localizeNameMap('resources', 'stone') },
+    { key: 'bamboo', icon: 'bamboo', label: localizeNameMap('resources', 'bamboo') },
+    { key: 'timber', icon: 'timber', label: localizeNameMap('resources', 'timber') },
+    { key: 'rope', icon: 'rope', label: localizeNameMap('resources', 'rope') },
+    { key: 'leather', icon: 'leather', label: localizeNameMap('resources', 'leather') },
+    { key: 'stone_knives', icon: 'knife', label: localizeNameMap('resources', 'stone_knives') },
+    { key: 'axes', icon: 'axe', label: localizeNameMap('resources', 'axes') },
+    { key: 'spears', icon: 'spear', label: localizeNameMap('resources', 'spears') },
+    { key: 'nets', icon: 'net', label: localizeNameMap('resources', 'nets') },
+    { key: 'backpacks', icon: 'backpack', label: localizeNameMap('resources', 'backpacks') },
+    { key: 'huts', icon: 'hut', label: localizeNameMap('resources', 'huts'), title: hutTitle, value: formatNumber(r.huts) + ' (' + shelter.covered + '/' + shelter.aliveCount + ')' },
+    { key: 'pots', icon: 'pot', label: localizeNameMap('resources', 'pots') },
+    { key: 'glasses', icon: 'glasses', label: localizeNameMap('resources', 'glasses') }
   ];
   var sections = [
-    { title: 'Basmaterial', className: 'materials', keys: ['logs', 'food', 'water', 'tinder', 'fiber', 'clay', 'stone', 'bamboo', 'timber', 'rope', 'leather'] },
-    { title: 'Utrustning', className: 'equipment', keys: ['stone_knives', 'axes', 'spears', 'nets', 'backpacks', 'pots', 'glasses'] },
-    { title: 'Läger', className: 'camp', keys: ['huts'] }
+    { title: t('resourceSections.materials'), className: 'materials', keys: ['logs', 'food', 'water', 'tinder', 'fiber', 'clay', 'stone', 'bamboo', 'timber', 'rope', 'leather'] },
+    { title: t('resourceSections.equipment'), className: 'equipment', keys: ['stone_knives', 'axes', 'spears', 'nets', 'backpacks', 'pots', 'glasses'] },
+    { title: t('resourceSections.camp'), className: 'camp', keys: ['huts'] }
   ];
   var itemByKey = {};
   items.forEach(function(item) { itemByKey[item.key] = item; });
@@ -2999,9 +3115,9 @@ function renderActions() {
   var container = document.getElementById('actions-list');
   var html = '';
   if ((gameState.resources.logs || 0) > 0 && (gameState.resources.tinder || 0) > 0 && ((gameState.resources.glasses || 0) > 0 || getFireLevel() > 0)) {
-    html += '<button class="project-btn" data-action="light_fire">' + icon('fire') + ' Tänd eld</button>';
+    html += '<button class="project-btn" data-action="light_fire">' + icon('fire') + ' ' + t('shell.fire') + '</button>';
   }
-  html += '<div class="project-meta" style="margin:8px 0;">Välj ett projekt du vill genomföra. Resurser tas från ert lager av basmaterial när projektet startas. Tilldela personer på arbetet tills det är klart.</div>';
+  html += '<div class="project-meta" style="margin:8px 0;">' + t('ui.projectsIntro') + '</div>';
   Object.keys(CONFIG.recipes).forEach(function(recipeId) {
     var recipe = CONFIG.recipes[recipeId];
     if ((recipe.workspace || 'camp') !== 'camp') return;
@@ -3010,30 +3126,30 @@ function renderActions() {
     var available = requirementStatus.ok;
     var missingText = requirementStatus.missing.join(', ');
     html += '<div class="project-card">';
-    html += '<div class="project-head"><div><div class="project-name">' + icon('craft') + ' ' + recipe.name + '</div><div class="project-meta">' + getRecipeCostText(recipe) + ' &bull; ' + formatNumber(recipe.timeHours) + ' h</div></div>';
-    html += '<button class="project-btn" data-start-project="' + recipeId + '" title="' + (missingText || 'Starta projekt') + '" ' + (!available ? 'disabled' : '') + '>Starta</button></div>';
+    html += '<div class="project-head"><div><div class="project-name">' + icon('craft') + ' ' + getRecipeName(recipeId) + '</div><div class="project-meta">' + getRecipeCostText(recipe) + ' &bull; ' + formatNumber(recipe.timeHours) + ' h</div></div>';
+    html += '<button class="project-btn" data-start-project="' + recipeId + '" title="' + (missingText || t('ui.startProject')) + '" ' + (!available ? 'disabled' : '') + '>' + t('common.start') + '</button></div>';
     if (missingText) html += '<div class="project-meta" style="margin-top:6px;color:#f39c12;">' + missingText + '</div>';
     html += '</div>';
   });
   var projects = getProjectsByWorkspace('camp');
-  html += '<div class="camp-column-title" style="margin-top:14px;">Pågående projekt</div>';
+  html += '<div class="camp-column-title" style="margin-top:14px;">' + t('ui.ongoingProjects') + '</div>';
   if (!projects.length) {
-    html += '<div class="project-meta">Inga projekt ännu.</div>';
+    html += '<div class="project-meta">' + t('ui.noProjects') + '</div>';
   }
   projects.forEach(function(project) {
     var worker = getProjectWorker(project.id);
     var percent = projectProgressPercent(project);
     var remaining = Math.max(0, (project.requiredHours || 0) - (project.progressHours || 0));
     html += '<div class="project-card">';
-    html += '<div class="project-head"><div><div class="project-name">' + project.name + '</div><div class="project-meta">' + formatNumber(project.progressHours) + '/' + formatNumber(project.requiredHours) + ' h &bull; ' + (worker ? worker.name : 'Ingen tilldelad') + '</div></div><div class="project-meta">' + formatNumber(remaining) + ' h kvar</div></div>';
+    html += '<div class="project-head"><div><div class="project-name">' + project.name + '</div><div class="project-meta">' + formatNumber(project.progressHours) + '/' + formatNumber(project.requiredHours) + ' h &bull; ' + (worker ? worker.name : t('statuses.noAssignedWorker')) + '</div></div><div class="project-meta">' + t('common.hoursRemaining', { value: formatNumber(remaining) }) + '</div></div>';
     html += '<div class="project-progress"><div class="project-progress-fill" style="width:' + percent + '%"></div></div>';
-    html += '<div class="project-actions"><select class="project-select" data-project-worker="' + project.id + '"><option value="">Välj arbetare</option>';
+    html += '<div class="project-actions"><select class="project-select" data-project-worker="' + project.id + '"><option value="">' + t('common.workerSelect') + '</option>';
     getAvailableProjectWorkers().forEach(function(survivor) {
       var selected = worker && worker.id === survivor.id ? ' selected' : '';
       html += '<option value="' + survivor.id + '"' + selected + '>' + survivor.name + '</option>';
     });
     html += '</select>';
-    if (worker) html += '<button class="project-btn" data-pause-project="' + worker.id + '">Pausa</button>';
+    if (worker) html += '<button class="project-btn" data-pause-project="' + worker.id + '">' + t('common.pause') + '</button>';
     html += '</div></div>';
   });
   container.innerHTML = html;
@@ -3072,18 +3188,18 @@ function renderPlayerStatus() {
   getAliveSurvivors().forEach(function(s, index) {
     var background = getBackgroundDef(s.background);
     var traits = (s.traits || []).map(getTraitDef).filter(Boolean);
-    var stateLabel = CONFIG.jobs[s.assignedJob] ? CONFIG.jobs[s.assignedJob].name : s.state;
-    if (s.state === 'away') stateLabel = 'Borta från lägret (' + formatNumber((s.awayTicksRemaining || 0) * tickFactor()) + ' h kvar)';
-    if (s.state === 'expedition') stateLabel = 'Expedition';
+    var stateLabel = CONFIG.jobs[s.assignedJob] ? getJobName(s.assignedJob) : s.state;
+    if (s.state === 'away') stateLabel = t('statuses.awayCamp', { hours: formatNumber((s.awayTicksRemaining || 0) * tickFactor()) });
+    if (s.state === 'expedition') stateLabel = t('statuses.expedition');
     if (s.activeProjectId) {
       var project = getProject(s.activeProjectId);
-      if (project) stateLabel = project.name + ' (' + formatNumber(Math.max(0, project.requiredHours - project.progressHours)) + ' h kvar)';
+      if (project) stateLabel = project.name + ' (' + t('common.hoursRemaining', { value: formatNumber(Math.max(0, project.requiredHours - project.progressHours)) }) + ')';
     }
-    if (s.activeTask) stateLabel = s.activeTask.name + ' (' + formatNumber(s.activeTask.ticksRemaining * tickFactor()) + ' h kvar)';
-    if (s.state === 'rest') stateLabel += ' (' + formatNumber(s.restTicksRemaining * tickFactor()) + ' h kvar)';
+    if (s.activeTask) stateLabel = s.activeTask.name + ' (' + t('common.hoursRemaining', { value: formatNumber(s.activeTask.ticksRemaining * tickFactor()) }) + ')';
+    if (s.state === 'rest') stateLabel = t('statuses.restTime', { base: stateLabel, hours: formatNumber(s.restTicksRemaining * tickFactor()) });
     if (s.state === 'care' && s.careTargetId) {
       var target = getAliveSurvivors().find(function(t){ return t.id === s.careTargetId; });
-      if (target) stateLabel += ' ' + icon('arrow') + ' ' + target.name;
+      if (target) stateLabel = t('statuses.careTarget', { base: stateLabel, target: target.name });
     }
     html += '<div class="survivor-card" data-id="' + s.id + '" style="margin-bottom:6px; padding:6px; background:#2d2d2d; border-radius:4px; border-left:3px solid ' + (index === 0 ? '#e67e22' : '#27ae60') + ';">';
     html += '<div class="survivor-action-row">';
@@ -3106,12 +3222,12 @@ function renderPlayerStatus() {
       html += '</div>';
     }
     html += '<div style="display:flex; gap:6px; margin-top:4px; font-size:11px; flex-wrap:wrap;">';
-    html += '<span title="Hälsa">' + icon('health') + formatNumber(s.health) + '</span><span title="Mättnad">' + icon('food') + formatNumber(100 - s.hunger) + '</span><span title="Vätska">' + icon('water') + formatNumber(100 - s.thirst) + '</span><span title="Energi">' + icon('rest') + 'Energi ' + formatNumber(100 - s.fatigue) + '</span><span title="Moral">' + icon('morale') + formatNumber(s.morale) + '</span>';
+    html += '<span title="' + t('ui.health') + '">' + icon('health') + formatNumber(s.health) + '</span><span title="' + t('ui.satiety') + '">' + icon('food') + formatNumber(100 - s.hunger) + '</span><span title="' + t('ui.hydration') + '">' + icon('water') + formatNumber(100 - s.thirst) + '</span><span title="' + t('ui.energy') + '">' + icon('rest') + t('ui.energy') + ' ' + formatNumber(100 - s.fatigue) + '</span><span title="' + t('ui.morale') + '">' + icon('morale') + formatNumber(s.morale) + '</span>';
     html += '</div>';
     html += buildSurvivorHoverMarkup(s);
     html += '</div>';
   });
-  if (!html) html = '<div>Inga överlevare...</div>';
+  if (!html) html = '<div>' + t('ui.noSurvivors') + '</div>';
   container.innerHTML = html;
   Array.prototype.forEach.call(container.querySelectorAll('.survivor-action-btn'), function(btn) {
     btn.onclick = function(event) {
@@ -3184,6 +3300,7 @@ function renderTabs() {
   if (isVoyageActive() && currentView !== 'sail') currentView = 'sail';
   Array.prototype.forEach.call(document.querySelectorAll('[data-view-tab]'), function(btn) {
     var tabView = btn.getAttribute('data-view-tab');
+    btn.textContent = t('views.' + tabView, null, btn.textContent);
     btn.classList.toggle('hidden', isVoyageActive());
     btn.classList.toggle('active', tabView === currentView);
   });
@@ -3196,12 +3313,42 @@ function renderTabs() {
   if (raft) raft.classList.toggle('hidden', currentView !== 'raft');
   if (sail) sail.classList.toggle('hidden', currentView !== 'sail');
 }
+function renderStaticShell() {
+  document.title = t('meta.pageTitle');
+  document.getElementById('resources-heading').textContent = t('shell.resources');
+  document.getElementById('fire-label').textContent = t('shell.fire') + ':';
+  document.getElementById('camp-work-heading').textContent = t('shell.campWork');
+  document.getElementById('crafting-heading').textContent = t('shell.crafting');
+  document.getElementById('village-heading').textContent = t('shell.village');
+  document.getElementById('survivors-heading').textContent = t('shell.survivors');
+  document.getElementById('expedition-heading').textContent = t('shell.expedition');
+  document.getElementById('raft-heading').textContent = t('shell.raftSite');
+  document.getElementById('sail-heading').textContent = t('shell.atSea');
+  document.getElementById('log-heading').textContent = t('shell.log');
+  document.getElementById('discoveries-heading').textContent = t('shell.discoveries');
+  document.getElementById('arrival-eyebrow').textContent = t('shell.arrivalEyebrow');
+  document.getElementById('arrival-close').textContent = t('common.continue');
+  document.getElementById('council-close').textContent = t('common.continue');
+  document.getElementById('difficulty-toggle').title = t('topBar.difficultyTitle');
+  document.getElementById('language-label').title = t('topBar.languageTitle');
+  document.getElementById('save-btn').title = t('common.save');
+  document.getElementById('load-btn').title = t('common.load');
+  document.getElementById('new-btn').title = t('common.newGame');
+  Array.prototype.forEach.call(document.querySelectorAll('[data-toggle-panel]'), function(btn) {
+    btn.textContent = btn.closest('.panel-collapsible') && btn.closest('.panel-collapsible').classList.contains('is-collapsed') ? t('common.show') : t('common.hide');
+  });
+  var select = document.getElementById('language-select');
+  if (select) {
+    select.innerHTML = getLanguageOptionsMarkup();
+    select.value = getLanguage();
+  }
+}
 function renderSailingView() {
   var container = document.getElementById('sail-root');
   if (!container) return;
   var voyage = getVoyageState();
   if (!voyage.active && !voyage.completed) {
-    container.innerHTML = '<div class="project-meta">Seglingen börjar först när ni väljer att segla från flottplatsen.</div>';
+    container.innerHTML = '<div class="project-meta">' + t('sailing.locked') + '</div>';
     return;
   }
   var totalDays = voyage.totalDays || 30;
@@ -3209,19 +3356,19 @@ function renderSailingView() {
   var daysRemaining = Math.max(0, totalDays - daysElapsed);
   var percent = clamp((daysElapsed / Math.max(1, totalDays)) * 100, 0, 100);
   var html = '<div class="expedition-layout"><div class="expedition-card">';
-  html += '<img class="expedition-hero" src="resources/raft/raft_sail.png" alt="Flotten till havs">';
-  html += '<div class="project-name">På öppet hav</div>';
-  html += '<div class="project-meta">Dag till havs: ' + daysElapsed + ' / ' + totalDays + '</div>';
+  html += '<img class="expedition-hero" src="resources/raft/raft_sail.png" alt="' + t('shell.atSea') + '">';
+  html += '<div class="project-name">' + t('sailing.openSea') + '</div>';
+  html += '<div class="project-meta">' + t('sailing.daysAtSea', { elapsed: daysElapsed, total: totalDays }) + '</div>';
   html += '<div class="project-progress"><div class="project-progress-fill" style="width:' + percent + '%"></div></div>';
-  html += '<div class="project-meta">Dagar kvar: ' + daysRemaining + '</div>';
-  html += '<div class="project-meta">Ombord: ' + (voyage.passengerCount || getAliveSurvivors().length) + ' överlevare</div>';
-  html += '<div class="project-meta">Mat ombord: ' + formatNumber(gameState.resources.food || 0) + '</div>';
-  html += '<div class="project-meta">Vatten ombord: ' + formatNumber(gameState.resources.water || 0) + '</div>';
-  html += '<div class="project-meta">Mat som gått förlorad till havs: ' + formatNumber(voyage.foodLostOverboard || 0) + '</div>';
+  html += '<div class="project-meta">' + t('sailing.daysRemaining', { days: daysRemaining }) + '</div>';
+  html += '<div class="project-meta">' + t('sailing.aboard', { count: voyage.passengerCount || getAliveSurvivors().length }) + '</div>';
+  html += '<div class="project-meta">' + t('sailing.foodAboard', { amount: formatNumber(gameState.resources.food || 0) }) + '</div>';
+  html += '<div class="project-meta">' + t('sailing.waterAboard', { amount: formatNumber(gameState.resources.water || 0) }) + '</div>';
+  html += '<div class="project-meta">' + t('sailing.foodLost', { amount: formatNumber(voyage.foodLostOverboard || 0) }) + '</div>';
   html += '</div><div class="expedition-card">';
-  html += '<div class="camp-column-title">Resan</div>';
-  html += '<div class="project-meta">Lägerlivet är avslutat. Inga fler jobb, händelser eller expeditioner sker nu. Varje tick motsvarar en dag till havs.</div>';
-  html += '<div class="project-meta" style="margin-top:10px;">Det som återstår är att se maten och vattnet räcka hela vägen tills ni når hamn.</div>';
+  html += '<div class="camp-column-title">' + t('sailing.journey') + '</div>';
+  html += '<div class="project-meta">' + t('sailing.journeyText1') + '</div>';
+  html += '<div class="project-meta" style="margin-top:10px;">' + t('sailing.journeyText2') + '</div>';
   html += '</div></div>';
   container.innerHTML = html;
 }
@@ -3233,20 +3380,20 @@ function renderExpedition() {
   var survivor = getExpeditionSurvivor();
   var html = '';
   if (!isExpeditionUnlocked()) {
-    container.innerHTML = '<div class="project-meta">Expeditioner låses upp efter örådet.</div>';
+    container.innerHTML = '<div class="project-meta">' + t('expedition.locked') + '</div>';
     return;
   }
   if (!expedition.active) {
-    html += '<div class="expedition-card"><div class="project-name">Starta expedition</div>';
-    html += '<div class="project-meta">Kräver 4 mat, 4 vatten, glasögon, ledigt spjut och ledig ryggsäck. Utrustning lånas tills expeditionen återvänder.</div>';
+    html += '<div class="expedition-card"><div class="project-name">' + t('expedition.startTitle') + '</div>';
+    html += '<div class="project-meta">' + t('expedition.startRequirements') + '</div>';
     if (!status.ok) html += '<div class="project-meta" style="color:#f39c12;margin-top:8px;">' + status.missing.join(', ') + '</div>';
-    html += '<div class="project-actions"><select class="project-select" id="expedition-survivor-select"><option value="">Välj överlevare</option>';
+    html += '<div class="project-actions"><select class="project-select" id="expedition-survivor-select"><option value="">' + t('expedition.selectSurvivor') + '</option>';
     getAliveSurvivors().filter(function(s) {
       return s.state !== 'rest' && s.state !== 'away' && !s.activeProjectId;
     }).forEach(function(s) {
       html += '<option value="' + s.id + '">' + s.name + '</option>';
     });
-    html += '</select><button class="project-btn" id="start-expedition-btn" ' + (!status.ok ? 'disabled' : '') + '>Skicka ut</button></div></div>';
+    html += '</select><button class="project-btn" id="start-expedition-btn" ' + (!status.ok ? 'disabled' : '') + '>' + t('expedition.sendOut') + '</button></div></div>';
     container.innerHTML = html;
     var startBtn = document.getElementById('start-expedition-btn');
     if (startBtn) startBtn.onclick = function() {
@@ -3270,41 +3417,41 @@ function renderExpedition() {
       var cls = 'map-tile' + (visited ? '' : ' unknown') + (x === expedition.position.x && y === expedition.position.y ? ' current' : '') + (clickableVisited ? ' clickable' : '') + ((onAutoPath || onReturnPath) ? ' route' : '');
       var bg = visited ? ' style="background-image:url(' + getExpeditionTileImage(tile, visited, { ignoreSurvivorMarker: x === expedition.position.x && y === expedition.position.y }) + ')"' : '';
       var badge = '';
-      if (visited && tile.strandedSurvivor && !tile.leftBehind) badge = '<span class="map-tile-badge" title="Väntande överlevare">!</span>';
+      if (visited && tile.strandedSurvivor && !tile.leftBehind) badge = '<span class="map-tile-badge" title="' + t('expedition.waitingBadge') + '">!</span>';
       html += '<div class="' + cls + '"' + bg + (clickableVisited ? ' data-autowalk-x="' + x + '" data-autowalk-y="' + y + '"' : '') + '>' + badge + '</div>';
     }
   }
   html += '</div></div><div class="expedition-card">';
-  html += '<img class="expedition-hero" src="' + image + '" alt="Aktuell ruta">';
-  html += '<div class="project-name">' + (survivor ? survivor.name : 'Expedition') + '</div>';
-  html += '<div class="project-meta">Mat ' + formatPreciseNumber(expedition.supplies.food) + ' / Vatten ' + formatPreciseNumber(expedition.supplies.water) + ' / Hälsa ' + (survivor ? formatNumber(survivor.health) : '-') + ' / Energi ' + (survivor ? formatNumber(100 - survivor.fatigue) : '-') + '</div>';
-  html += '<div class="project-meta">Fynd: ' + ((expedition.gear || {}).sword ? 'Svärd ' : '') + ((expedition.gear || {}).shield ? 'Sköld' : '') + (!((expedition.gear || {}).sword || (expedition.gear || {}).shield) ? 'Inga' : '') + '</div>';
-  if (expedition.escorting) html += '<div class="project-meta" style="color:#8ee08e;">Eskorterar: ' + expedition.escorting.name + ' (hälsa ' + formatNumber(expedition.escorting.health) + ')</div>';
+  html += '<img class="expedition-hero" src="' + image + '" alt="' + t('expedition.currentTileAlt') + '">';
+  html += '<div class="project-name">' + (survivor ? survivor.name : t('shell.expedition')) + '</div>';
+  html += '<div class="project-meta">' + localizeNameMap('resources', 'food') + ' ' + formatPreciseNumber(expedition.supplies.food) + ' / ' + localizeNameMap('resources', 'water') + ' ' + formatPreciseNumber(expedition.supplies.water) + ' / ' + t('ui.health') + ' ' + (survivor ? formatNumber(survivor.health) : '-') + ' / ' + t('ui.energy') + ' ' + (survivor ? formatNumber(100 - survivor.fatigue) : '-') + '</div>';
+  html += '<div class="project-meta">' + t('expedition.findings', { items: ((expedition.gear || {}).sword ? t('expedition.sword') + ' ' : '') + ((expedition.gear || {}).shield ? t('expedition.shield') : '') + (!((expedition.gear || {}).sword || (expedition.gear || {}).shield) ? t('expedition.noFindings') : '') }) + '</div>';
+  if (expedition.escorting) html += '<div class="project-meta" style="color:#8ee08e;">' + t('expedition.escorting', { name: expedition.escorting.name, health: formatNumber(expedition.escorting.health) }) + '</div>';
   if (currentTile.strandedSurvivor) {
-    html += '<div class="project-meta" style="color:#f1c40f;">Väntande överlevare: ' + currentTile.strandedSurvivor.name + ' / hälsa ' + formatNumber(currentTile.strandedSurvivor.health) + ' / bakgrund ' + ((getBackgroundDef(currentTile.strandedSurvivor.background) || {}).name || 'Okänd') + (currentTile.strandedSurvivor.leftBehind ? ' / lämnad kvar med proviant' : '') + '</div>';
+    html += '<div class="project-meta" style="color:#f1c40f;">' + t('expedition.waitingSurvivor', { name: currentTile.strandedSurvivor.name, health: formatNumber(currentTile.strandedSurvivor.health), background: ((getBackgroundDef(currentTile.strandedSurvivor.background) || {}).name || t('common.unknown')), suffix: currentTile.strandedSurvivor.leftBehind ? t('expedition.leftBehindSuffix') : '' }) + '</div>';
   }
-  html += '<div class="project-meta">Position ' + expedition.position.x + ',' + expedition.position.y + (expedition.pendingCommand ? ' / Nästa tick: ' + expedition.pendingCommand : '') + '</div>';
-  html += '<div class="project-meta">Återtåg till lägret: ' + getExpeditionTravelTicksToCamp(expedition.position) + ' tick, inga fynd på vägen.</div>';
-  if ((expedition.autoWalkPath || []).length > 0) html += '<div class="project-meta" style="color:#8ee08e;">Autogång: ' + expedition.autoWalkPath.length + ' steg kvar</div>';
-  if ((expedition.returnTicksRemaining || 0) > 0) html += '<div class="project-meta" style="color:#8ee08e;">Säker återmarsch: ' + expedition.returnTicksRemaining + ' tick kvar</div>';
-  if ((expedition.restTicksRemaining || 0) > 0) html += '<div class="project-meta" style="color:#f1c40f;">Vilar vid eld: ' + formatNumber(expedition.restTicksRemaining * tickFactor()) + ' h kvar</div>';
+  html += '<div class="project-meta">' + t('expedition.position', { x: expedition.position.x, y: expedition.position.y, pending: expedition.pendingCommand ? t('expedition.nextTick', { command: expedition.pendingCommand }) : '' }) + '</div>';
+  html += '<div class="project-meta">' + t('expedition.retreat', { ticks: getExpeditionTravelTicksToCamp(expedition.position) }) + '</div>';
+  if ((expedition.autoWalkPath || []).length > 0) html += '<div class="project-meta" style="color:#8ee08e;">' + t('expedition.autoWalk', { steps: expedition.autoWalkPath.length }) + '</div>';
+  if ((expedition.returnTicksRemaining || 0) > 0) html += '<div class="project-meta" style="color:#8ee08e;">' + t('expedition.safeReturn', { ticks: expedition.returnTicksRemaining }) + '</div>';
+  if ((expedition.restTicksRemaining || 0) > 0) html += '<div class="project-meta" style="color:#f1c40f;">' + t('expedition.resting', { hours: formatNumber(expedition.restTicksRemaining * tickFactor()) }) + '</div>';
   var movementDisabled = !survivor || (survivor.fatigue || 0) >= CONFIG.fatigueRestThreshold || (expedition.restTicksRemaining || 0) > 0 || (expedition.returnTicksRemaining || 0) > 0;
   var restDisabled = (expedition.restTicksRemaining || 0) > 0 || (expedition.returnTicksRemaining || 0) > 0;
   var disabledMove = movementDisabled ? ' disabled' : '';
   var disabledRest = restDisabled ? ' disabled' : '';
-  if (expedition.foundCockpit) html += '<div class="project-meta" style="color:#8ee08e;">Cockpit hittad. Återvänd till lägret.</div>';
+  if (expedition.foundCockpit) html += '<div class="project-meta" style="color:#8ee08e;">' + t('expedition.cockpitFound') + '</div>';
   html += '<div class="expedition-controls">';
-  html += '<button class="project-btn" data-expedition-command="north"' + disabledMove + '>Norr</button>';
-  html += '<button class="project-btn" data-expedition-command="west"' + disabledMove + '>Väst</button>';
-  html += '<button class="project-btn" data-expedition-command="south"' + disabledMove + '>Söder</button>';
-  html += '<button class="project-btn" data-expedition-command="east"' + disabledMove + '>Öst</button>';
+  html += '<button class="project-btn" data-expedition-command="north"' + disabledMove + '>' + t('expedition.north') + '</button>';
+  html += '<button class="project-btn" data-expedition-command="west"' + disabledMove + '>' + t('expedition.west') + '</button>';
+  html += '<button class="project-btn" data-expedition-command="south"' + disabledMove + '>' + t('expedition.south') + '</button>';
+  html += '<button class="project-btn" data-expedition-command="east"' + disabledMove + '>' + t('expedition.east') + '</button>';
   html += '</div><div class="project-actions">';
-  html += '<button class="project-btn" data-expedition-command="rest"' + disabledRest + '>Vila vid eld</button>';
-  html += '<button class="project-btn" data-expedition-command="return">Återvänd</button>';
-  if (currentTile.feature === 'temple') html += '<button class="project-btn" id="investigate-temple-btn"' + (currentTile.templeExplored ? ' disabled' : '') + '>Undersök tempel</button>';
+  html += '<button class="project-btn" data-expedition-command="rest"' + disabledRest + '>' + t('expedition.restAtFire') + '</button>';
+  html += '<button class="project-btn" data-expedition-command="return">' + t('expedition.return') + '</button>';
+  if (currentTile.feature === 'temple') html += '<button class="project-btn" id="investigate-temple-btn"' + (currentTile.templeExplored ? ' disabled' : '') + '>' + t('expedition.investigateTemple') + '</button>';
   if (currentTile.strandedSurvivor) {
-    html += '<button class="project-btn" id="care-rescue-btn"' + ((expedition.restTicksRemaining || 0) > 0 ? ' disabled' : '') + '>Vårda överlevare</button>';
-    html += '<button class="project-btn" id="escort-rescue-btn"' + (((currentTile.strandedSurvivor.health || 0) < (getExpeditionConfig().escortMinHealth || 45) || expedition.escorting) ? ' disabled' : '') + '>Eskortera till lägret</button>';
+    html += '<button class="project-btn" id="care-rescue-btn"' + ((expedition.restTicksRemaining || 0) > 0 ? ' disabled' : '') + '>' + t('expedition.careSurvivor') + '</button>';
+    html += '<button class="project-btn" id="escort-rescue-btn"' + (((currentTile.strandedSurvivor.health || 0) < (getExpeditionConfig().escortMinHealth || 45) || expedition.escorting) ? ' disabled' : '') + '>' + t('expedition.escortToCamp') + '</button>';
   }
   html += '</div><div class="expedition-log">';
   (expedition.log || []).slice(0, 12).forEach(function(entry) {
@@ -3331,32 +3478,32 @@ function renderRaftView() {
   var container = document.getElementById('raft-root');
   if (!container) return;
   if (!((gameState.world || {}).raftUnlocked)) {
-    container.innerHTML = '<div class="project-meta">Flotten låses upp efter det andra örådet.</div>';
+    container.innerHTML = '<div class="project-meta">' + t('raft.locked') + '</div>';
     return;
   }
   var summary = getRaftSummary();
   var departureReady = !!((gameState.world || {}).departureReady);
   var html = '<div class="expedition-layout"><div class="expedition-card">';
-  html += '<img class="expedition-hero" src="' + (departureReady ? 'resources/raft/raft_departure.png' : 'resources/raft/raft_build.png') + '" alt="Flottbygge">';
-  html += '<div class="project-name">Byggplatsen på stranden</div>';
-  html += '<div class="project-meta">Färdigställande: ' + formatNumber(summary.percent) + '%</div>';
+  html += '<img class="expedition-hero" src="' + (departureReady ? 'resources/raft/raft_departure.png' : 'resources/raft/raft_build.png') + '" alt="' + t('shell.raftSite') + '">';
+  html += '<div class="project-name">' + t('raft.title') + '</div>';
+  html += '<div class="project-meta">' + t('raft.completion', { percent: formatNumber(summary.percent) }) + '</div>';
   html += '<div class="project-progress"><div class="project-progress-fill" style="width:' + clamp(summary.percent, 0, 100) + '%"></div></div>';
-  html += '<div class="project-meta">Överlevare att bära: ' + summary.aliveCount + '</div>';
-  html += '<div class="project-meta">Stockar på flotte: ' + formatNumber(summary.currentLogs) + ' / ' + formatNumber(summary.requiredLogs) + '</div>';
-  html += '<div class="project-meta">Segel: ' + formatNumber(summary.currentSail) + ' m² / ' + formatNumber(summary.requiredSail) + ' m²</div>';
-  html += '<div class="project-meta">Rigg: ' + (summary.currentRig >= 1 ? 'Klar' : 'Saknas') + '</div>';
-  html += '<div class="project-meta">Hytt: ' + (summary.currentHut >= 1 ? 'Klar' : 'Saknas') + '</div>';
-  html += '<div class="project-meta">Förråd: mat ' + formatNumber(summary.currentFood) + ' / ' + formatNumber(summary.requiredFood) + ', vatten ' + formatNumber(summary.currentWater) + ' / ' + formatNumber(summary.requiredWater) + ', krukor ' + formatNumber(summary.currentPots) + ' / ' + formatNumber(summary.requiredPots) + '</div>';
-  if (summary.ready) html += '<div class="project-meta" style="color:#8ee08e;">Flotten är i princip klar för avfärd när ni bestämmer er.</div>';
+  html += '<div class="project-meta">' + t('raft.survivorsToCarry', { count: summary.aliveCount }) + '</div>';
+  html += '<div class="project-meta">' + t('raft.logs', { current: formatNumber(summary.currentLogs), required: formatNumber(summary.requiredLogs) }) + '</div>';
+  html += '<div class="project-meta">' + t('raft.sail', { current: formatNumber(summary.currentSail), required: formatNumber(summary.requiredSail) }) + '</div>';
+  html += '<div class="project-meta">' + t('raft.rig', { status: summary.currentRig >= 1 ? t('raft.complete') : t('raft.missing') }) + '</div>';
+  html += '<div class="project-meta">' + t('raft.hut', { status: summary.currentHut >= 1 ? t('raft.complete') : t('raft.missing') }) + '</div>';
+  html += '<div class="project-meta">' + t('raft.supplies', { food: formatNumber(summary.currentFood), requiredFood: formatNumber(summary.requiredFood), water: formatNumber(summary.currentWater), requiredWater: formatNumber(summary.requiredWater), pots: formatNumber(summary.currentPots), requiredPots: formatNumber(summary.requiredPots) }) + '</div>';
+  if (summary.ready) html += '<div class="project-meta" style="color:#8ee08e;">' + t('raft.ready') + '</div>';
   if (departureReady) {
     html += '<div class="project-actions">';
-    html += '<button class="project-btn" id="raft-wait-btn">Vänta på fler överlevare</button>';
-    html += '<button class="project-btn" id="raft-sail-btn"' + (!summary.ready ? ' disabled' : '') + '>Segla</button>';
+    html += '<button class="project-btn" id="raft-wait-btn">' + t('raft.waitMore') + '</button>';
+    html += '<button class="project-btn" id="raft-sail-btn"' + (!summary.ready ? ' disabled' : '') + '>' + t('raft.sailNow') + '</button>';
     html += '</div>';
-    if (!summary.ready) html += '<div class="project-meta" style="margin-top:8px;color:#f39c12;">Fler överlevare eller förlorad proviant har gjort att ni inte längre är helt klara för avfärd.</div>';
+    if (!summary.ready) html += '<div class="project-meta" style="margin-top:8px;color:#f39c12;">' + t('raft.noLongerReady') + '</div>';
   }
   html += '</div><div class="expedition-card">';
-  html += '<div class="camp-column-title">Flottprojekt</div>';
+  html += '<div class="camp-column-title">' + t('raft.projectHeader') + '</div>';
   Object.keys(CONFIG.recipes).forEach(function(recipeId) {
     var recipe = CONFIG.recipes[recipeId];
     if ((recipe.workspace || 'camp') !== 'raft') return;
@@ -3364,27 +3511,27 @@ function renderRaftView() {
     var available = requirementStatus.ok;
     var missingText = requirementStatus.missing.join(', ');
     html += '<div class="project-card">';
-    html += '<div class="project-head"><div><div class="project-name">' + icon('craft') + ' ' + recipe.name + '</div><div class="project-meta">' + getRecipeCostText(recipe) + ' &bull; ' + formatNumber(recipe.timeHours) + ' h</div></div>';
-    html += '<button class="project-btn" data-start-raft-project="' + recipeId + '" title="' + (missingText || 'Starta projekt') + '" ' + (!available ? 'disabled' : '') + '>Starta</button></div>';
+    html += '<div class="project-head"><div><div class="project-name">' + icon('craft') + ' ' + getRecipeName(recipeId) + '</div><div class="project-meta">' + getRecipeCostText(recipe) + ' &bull; ' + formatNumber(recipe.timeHours) + ' h</div></div>';
+    html += '<button class="project-btn" data-start-raft-project="' + recipeId + '" title="' + (missingText || t('ui.startProject')) + '" ' + (!available ? 'disabled' : '') + '>' + t('common.start') + '</button></div>';
     if (missingText) html += '<div class="project-meta" style="margin-top:6px;color:#f39c12;">' + missingText + '</div>';
     html += '</div>';
   });
   var projects = getProjectsByWorkspace('raft');
-  if (!projects.length) html += '<div class="project-meta">Inga raftprojekt ännu.</div>';
+  if (!projects.length) html += '<div class="project-meta">' + t('raft.noProjects') + '</div>';
   projects.forEach(function(project) {
     var worker = getProjectWorker(project.id);
     var percent = projectProgressPercent(project);
     var remaining = Math.max(0, (project.requiredHours || 0) - (project.progressHours || 0));
     html += '<div class="project-card">';
-    html += '<div class="project-head"><div><div class="project-name">' + project.name + '</div><div class="project-meta">' + formatNumber(project.progressHours) + '/' + formatNumber(project.requiredHours) + ' h &bull; ' + (worker ? worker.name : 'Ingen tilldelad') + '</div></div><div class="project-meta">' + formatNumber(remaining) + ' h kvar</div></div>';
+    html += '<div class="project-head"><div><div class="project-name">' + project.name + '</div><div class="project-meta">' + formatNumber(project.progressHours) + '/' + formatNumber(project.requiredHours) + ' h &bull; ' + (worker ? worker.name : t('statuses.noAssignedWorker')) + '</div></div><div class="project-meta">' + t('common.hoursRemaining', { value: formatNumber(remaining) }) + '</div></div>';
     html += '<div class="project-progress"><div class="project-progress-fill" style="width:' + percent + '%"></div></div>';
-    html += '<div class="project-actions"><select class="project-select" data-raft-project-worker="' + project.id + '"><option value="">Välj arbetare</option>';
+    html += '<div class="project-actions"><select class="project-select" data-raft-project-worker="' + project.id + '"><option value="">' + t('common.workerSelect') + '</option>';
     getAvailableProjectWorkers().forEach(function(survivor) {
       var selected = worker && worker.id === survivor.id ? ' selected' : '';
       html += '<option value="' + survivor.id + '"' + selected + '>' + survivor.name + '</option>';
     });
     html += '</select>';
-    if (worker) html += '<button class="project-btn" data-pause-raft-project="' + worker.id + '">Pausa</button>';
+    if (worker) html += '<button class="project-btn" data-pause-raft-project="' + worker.id + '">' + t('common.pause') + '</button>';
     html += '</div></div>';
   });
   html += '</div></div>';
@@ -3408,7 +3555,7 @@ function renderRaftView() {
   });
   var waitBtn = document.getElementById('raft-wait-btn');
   if (waitBtn) waitBtn.onclick = function() {
-    addLog('Gruppen väljer att vänta lite till och hålla flotten klar för avfärd.', 'info');
+    addLog(t('messages.savedWait'), 'info');
     render();
   };
   var sailBtn = document.getElementById('raft-sail-btn');
@@ -3426,7 +3573,7 @@ function renderVillage() {
   html += '<div class="village-assets">';
   if (fireLevel > 0) html += renderAsset('resources/ui/fire_' + fireLevel + '.png', 'village-asset fire', icon('fire'));
   for (var i = 0; i < huts; i++) html += renderAsset('resources/ui/hut.png', 'village-asset', icon('hut'));
-  if (fireLevel <= 0 && huts <= 0) html += '<div class="project-meta">Inga byggnader ännu. Bygg hus och håll elden vid liv för att se byn växa.</div>';
+  if (fireLevel <= 0 && huts <= 0) html += '<div class="project-meta">' + t('ui.noBuildings') + '</div>';
   html += '</div>';
   html += '<div class="village-effects">';
   effects.forEach(function(effect) {
@@ -3440,7 +3587,7 @@ function renderLogs() {
     return '<div class="log-entry ' + log.level + '"><span class="log-time">' + log.time + '</span><div class="log-text">' + log.text + '</div></div>';
   }).join('');
 }
-function render() { renderTabs(); renderTopBar(); renderFire(); renderResources(); renderActions(); renderVillage(); renderPlayerStatus(); renderDiscoveries(); renderExpedition(); renderRaftView(); renderSailingView(); renderLogs(); checkExplorationCouncilActivation(); checkRaftCouncilActivation(); checkDepartureCouncilActivation(); }
+function render() { renderStaticShell(); renderTabs(); renderTopBar(); renderFire(); renderResources(); renderActions(); renderVillage(); renderPlayerStatus(); renderDiscoveries(); renderExpedition(); renderRaftView(); renderSailingView(); renderLogs(); checkExplorationCouncilActivation(); checkRaftCouncilActivation(); checkDepartureCouncilActivation(); }
 
 function clearTimer() { if (tickInterval) { clearInterval(tickInterval); tickInterval = null; } }
 function togglePanel(panelId, button) {
@@ -3448,7 +3595,7 @@ function togglePanel(panelId, button) {
   if (!panel) return;
   var collapsed = panel.classList.toggle('is-collapsed');
   if (button) {
-    button.textContent = collapsed ? 'Visa' : 'Dölj';
+    button.textContent = collapsed ? t('common.show') : t('common.hide');
     button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
   }
 }
@@ -3462,6 +3609,18 @@ function setSpeed(speed) {
 async function init() {
   await loadGameData();
   newGame();
+  renderStaticShell();
+  var languageSelect = document.getElementById('language-select');
+  if (languageSelect) {
+    languageSelect.innerHTML = getLanguageOptionsMarkup();
+    languageSelect.value = getLanguage();
+    languageSelect.addEventListener('change', async function() {
+      setLanguage(languageSelect.value);
+      await loadGameData();
+      syncPlayerDisplayName();
+      render();
+    });
+  }
   document.getElementById('tick-btn').addEventListener('click', function(){ setSpeed(currentSpeed === 0 ? 1 : 0); });
   document.getElementById('save-btn').addEventListener('click', saveGame);
   document.getElementById('load-btn').addEventListener('click', loadGame);
@@ -3492,6 +3651,9 @@ async function init() {
   });
   document.getElementById('difficulty-toggle').addEventListener('click', cycleDifficulty);
   Array.prototype.forEach.call(document.querySelectorAll('.speed-btn'), function(btn){ btn.addEventListener('click', function(){ setSpeed(parseInt(btn.dataset.speed, 10)); }); });
+  onLanguageChange(function() {
+    renderStaticShell();
+  });
   setSpeed(1);
 }
 
@@ -3499,6 +3661,6 @@ init().catch(function(error) {
   console.error(error);
   var app = document.getElementById('app');
   if (app) {
-    app.innerHTML = '<main class="main-content"><section class="panel"><h2 class="panel-header">Kunde inte ladda speldatan</h2><p>Kontrollera att sidan körs via en lokal webbserver och att JSON-filerna i <code>resources/</code> går att läsa.</p></section></main>';
+    app.innerHTML = '<main class="main-content"><section class="panel"><h2 class="panel-header">' + t('ui.loadingErrorTitle') + '</h2><p>' + t('ui.loadingErrorBody') + '</p></section></main>';
   }
 });
