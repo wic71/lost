@@ -367,6 +367,11 @@ const translations = {
       loadingErrorTitle: 'Could not load game data',
       loadingErrorBody: 'Make sure the page is running from a local web server and that the JSON files in <code>resources/</code> can be read.'
     },
+    intro: {
+      title: 'Welcome to Lost',
+      subtitle: 'A survival game',
+      begin: 'Begin'
+    },
     requirements: {
       discovery: 'Requires discovery: {id}',
       missingResource: 'Missing {amount} {resource}',
@@ -778,6 +783,11 @@ const translations = {
       noBuildings: 'Inga byggnader ännu. Bygg hus och håll elden vid liv för att se byn växa.',
       loadingErrorTitle: 'Kunde inte ladda speldatan',
       loadingErrorBody: 'Kontrollera att sidan körs via en lokal webbserver och att JSON-filerna i <code>resources/</code> går att läsa.'
+    },
+    intro: {
+      title: 'Välkommen till Lost',
+      subtitle: 'Ett överlevnadsspel',
+      begin: 'Börja'
     }
   }
 };

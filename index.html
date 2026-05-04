@@ -225,6 +225,16 @@
     .council-card .arrival-content { max-height:82vh; overflow:auto; }
     .council-card .arrival-text { font-size:14px; line-height:1.55; color:#d0d0d0; }
     .council-card .arrival-text p { margin:0 0 10px; }
+    .intro-card { width:min(860px, 100%); grid-template-columns:minmax(280px, 360px) 1fr; }
+    .intro-card .arrival-media img { width:100%; height:100%; min-height:360px; object-fit:cover; border-radius:10px; border:1px solid #333; background:#111; }
+    .intro-card .arrival-content { max-height:82vh; overflow:auto; }
+    .intro-card .arrival-text { font-size:14px; line-height:1.55; color:#d0d0d0; }
+    .intro-card .arrival-text p { margin:0 0 10px; }
+    @media (max-width:600px) {
+      .intro-card { grid-template-columns:1fr; }
+      .intro-card .arrival-media img { min-height:120px; max-height:160px; }
+      .intro-card .arrival-content { max-height:55vh; overflow:auto; }
+    }
     .arrival-content { padding:18px; }
     .arrival-eyebrow { font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:#f1c40f; }
     .arrival-title { font-size:26px; font-weight:800; margin-top:4px; }
@@ -554,6 +564,18 @@
         <div class="arrival-subtitle" id="council-subtitle"></div>
         <div class="arrival-text" id="council-text"></div>
         <button class="arrival-close" id="council-close">Continue</button>
+      </div>
+    </div>
+  </div>
+  <div class="arrival-overlay" id="intro-overlay">
+    <div class="arrival-card intro-card">
+      <div class="arrival-media" id="intro-media"></div>
+      <div class="arrival-content">
+        <div class="arrival-eyebrow" id="intro-eyebrow">LOST</div>
+        <div class="arrival-title" id="intro-title">Welcome</div>
+        <div class="arrival-subtitle" id="intro-subtitle"></div>
+        <div class="arrival-text" id="intro-text"></div>
+        <button class="arrival-close" id="intro-close">Begin</button>
       </div>
     </div>
   </div>

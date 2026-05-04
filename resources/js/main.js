@@ -957,6 +957,35 @@ function showStoryOverlay(options) {
   councilOverlayCloseHandler = typeof options.onClose === 'function' ? options.onClose : null;
   overlay.classList.add('visible');
 }
+function showIntroModal() {
+  var overlay = document.getElementById('intro-overlay');
+  if (!overlay) return;
+  var rawText = GAME_DATA.introText || '';
+  document.getElementById('intro-media').innerHTML = '<img src="resources/ui/intro.png" alt="LOST" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'village-placeholder\',textContent:\'LOST\'}))">';
+  document.getElementById('intro-eyebrow').textContent = 'LOST';
+  document.getElementById('intro-title').textContent = t('intro.title');
+  document.getElementById('intro-subtitle').textContent = t('intro.subtitle');
+  document.getElementById('intro-text').innerHTML = formatIntroText(rawText);
+  document.getElementById('intro-close').textContent = t('intro.begin');
+  overlay.classList.add('visible');
+}
+function hideIntroModal() {
+  var overlay = document.getElementById('intro-overlay');
+  if (overlay) overlay.classList.remove('visible');
+}
+function formatIntroText(rawText) {
+  var text = rawText || '';
+  text = text.replace(/\r\n/g, '\n');
+  text = text.replace(/^#\s+.*$/gm, '').replace(/^##\s+.*$/gm, function(match) {
+    return '<h3>' + escapeHtml(match.replace(/^##\s+/, '').trim()) + '</h3>';
+  });
+  return text.split(/\n\s*\n/).filter(function(paragraph) {
+    return paragraph.trim().length > 0;
+  }).map(function(paragraph) {
+    if (/^<h3>/.test(paragraph)) return paragraph;
+    return '<p>' + escapeHtml(paragraph.trim()).replace(/\n/g, '<br>') + '</p>';
+  }).join('');
+}
 function getVoyageState() {
   if (!gameState.voyage) {
     gameState.voyage = {
@@ -2639,6 +2668,7 @@ function newGame() {
   addLog(t('messages.intro8'), 'info');
   normalizeResourceInventory();
   render();
+  showIntroModal();
 }
 
 function advanceTime() {
@@ -3235,6 +3265,7 @@ function executeDirectAction(actionId) {
   }
   normalizeResourceInventory();
   render();
+  showIntroModal();
 }
 
 function getAvailableActions() {
@@ -3953,6 +3984,10 @@ async function init() {
   document.getElementById('council-close').addEventListener('click', hideExplorationCouncilCard);
   document.getElementById('council-overlay').addEventListener('click', function(event) {
     if (event.target === this) hideExplorationCouncilCard();
+  });
+  document.getElementById('intro-close').addEventListener('click', hideIntroModal);
+  document.getElementById('intro-overlay').addEventListener('click', function(event) {
+    if (event.target === this) hideIntroModal();
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-toggle-panel]'), function(btn) {
     btn.addEventListener('click', function() {

@@ -55,6 +55,7 @@ function normalizeGameData(data) {
   GAME_DATA.council = data.council || {};
   GAME_DATA.expeditionTexts = data.expeditionTexts || {};
   GAME_DATA.articles = data.articles || {};
+  GAME_DATA.introText = data.introText || '';
 }
 
 export async function loadGameData() {
@@ -72,7 +73,8 @@ export async function loadGameData() {
     fetchLocalizedMarkdown('expedition_autowalk', true),
     fetchLocalizedMarkdown('article_1', true),
     fetchLocalizedMarkdown('article_2a_death', true),
-    fetchLocalizedMarkdown('article_2b_all_survived', true)
+    fetchLocalizedMarkdown('article_2b_all_survived', true),
+    fetchLocalizedMarkdown('intro', false)
   ]);
 
   normalizeGameData({
@@ -91,6 +93,7 @@ export async function loadGameData() {
       arrival: loaded[11],
       deaths: loaded[12],
       allSurvived: loaded[13]
-    }
+    },
+    introText: loaded[14]
   });
 }
