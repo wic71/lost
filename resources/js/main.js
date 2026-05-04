@@ -3265,7 +3265,6 @@ function executeDirectAction(actionId) {
   }
   normalizeResourceInventory();
   render();
-  showIntroModal();
 }
 
 function getAvailableActions() {
