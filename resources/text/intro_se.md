@@ -16,5 +16,5 @@ Med tiden kan ni upptäcka nya sätt att överleva. Tillverka verktyg. Förbätt
 
 ## Tips för din första runda
 
-Börja gärna på lätt svårighetsgrad och låg spelhastighet. Samla minst 7 ved, 2 mat och 2 vatten innan du tänder elden. Se också till att du är utvilad.
+Börja gärna på lätt svårighetsgrad och lite lägre spelhastighet. Samla minst 7 ved, 2 mat och 2 vatten innan du tänder elden. Se också till att du är utvilad.
 För att överleva måste du nyttja tiden väl, låt ingen sitta och filosofera för mycket. När elden väl brinner behöver du fokusera på att hålla den vid liv tills den första överlevaren hittar ditt läger. Sedan börjar kampen på riktigt.
