@@ -4010,6 +4010,14 @@ async function init() {
     renderStaticShell();
   });
   setSpeed(1);
+  if (window.innerWidth <= 900) {
+    var craftingPanel = document.getElementById('crafting-panel');
+    if (craftingPanel && !craftingPanel.classList.contains('is-collapsed')) {
+      craftingPanel.classList.add('is-collapsed');
+      var btn = craftingPanel.querySelector('.panel-toggle');
+      if (btn) { btn.textContent = t('common.show'); btn.setAttribute('aria-expanded', 'false'); }
+    }
+  }
 }
 
 init().catch(function(error) {
